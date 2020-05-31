@@ -4,11 +4,15 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+//! Manifest types.
+
+use anyhow::{Context, Result};
 use serde::Deserialize;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Meta {
+    name: String,
     version: String,
     url: String,
 }
@@ -71,8 +75,13 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    pub fn from_slice(s: &[u8]) -> Result<Manifest, toml::de::Error> {
-        toml::from_slice(s)
+    pub fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Manifest> {
+        toml::from_str(&std::fs::read_to_string(path.as_ref())?)
+            .with_context(|| format!("File {} is no valid manifest", path.as_ref().display()))
+    }
+
+    pub fn name(&self) -> &str {
+        &self.meta.name
     }
 }
 
@@ -80,20 +89,13 @@ impl Manifest {
 mod tests {
     use super::*;
     use pretty_assertions::assert_eq;
-    use std::fs::File;
-    use std::io::Read;
-    use std::path::Path;
 
     #[test]
     fn deserialize_ripgrep_manifest() {
-        let mut buffer: Vec<u8> = Vec::new();
-        File::open("manifests/ripgrep.toml")
-            .unwrap()
-            .read_to_end(&mut buffer)
-            .unwrap();
-        let manifest = Manifest::from_slice(&buffer).unwrap();
+        let manifest = Manifest::read_from_path("manifests/ripgrep.toml").unwrap();
         assert_eq!(manifest, Manifest {
             meta: Meta {
+                name: "ripgrep".to_string(),
                 version: "12.1.1".to_string(),
                 url: "https://github.com/BurntSushi/ripgrep".to_string(),
             },
