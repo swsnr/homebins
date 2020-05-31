@@ -1,0 +1,19 @@
+[package]
+name = "homebins"
+description = "Binaries for your $HOME"
+homepage = "https://github.com/lunaryorn/homebins"
+repository = "https://github.com/lunaryorn/homebins"
+readme = "README.md"
+authors = ["Sebastian Wiesner <sebastian@swsnr.de>"]
+license = "MPL-2.0"
+edition = "2018"
+version = "0.1.0"
+publish = false
+
+[dependencies]
+toml = "^0.5"
+serde = { version = "^1", features=["derive"] }
+clap = "^2"
+
+[dev-dependencies]
+pretty_assertions = "^0.6"
