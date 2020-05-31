@@ -1,0 +1,17 @@
+[meta]
+version = "12.1.1"
+url = "https://github.com/BurntSushi/ripgrep"
+
+[discover]
+binary = "rg"
+version_check.args = ["--version"]
+version_check.pattern = ""
+
+[[install]]
+download = "https://github.com/BurntSushi/ripgrep/releases/download/12.1.1/ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz"
+checksums.b2 = "1c97a37e109f818bce8e974eb3a29eb8d1ca488e048caff658696211e8cad23728a767a2d6b97fed365d24f9545f1bc49a3e2687ab437eb4189993ad5fe30663"
+files = [
+    { source = "ripgrep-12.1.1-x86_64-unknown-linux-musl/rg", type = "bin" },
+    { source = "ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1", type = "manpage", section = 1 },
+    { source = "ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish", type = "completion", shell = "fish" }
+]
