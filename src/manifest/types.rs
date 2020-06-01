@@ -52,7 +52,7 @@ pub enum Shell {
 pub enum Target {
     #[serde(rename = "binary", alias = "bin")]
     Binary,
-    #[serde(rename = "manpage")]
+    #[serde(rename = "manpage", alias = "man")]
     Manpage { section: u8 },
     #[serde(rename = "completion")]
     Completion { shell: Shell },
