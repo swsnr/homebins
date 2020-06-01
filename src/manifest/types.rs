@@ -61,7 +61,7 @@ pub enum Target {
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct InstallFile {
     pub source: PathBuf,
-    pub target_name: Option<String>,
+    pub name: Option<String>,
     #[serde(flatten)]
     pub target: Target,
 }
@@ -117,17 +117,17 @@ mod tests {
                     files: vec![
                         InstallFile {
                             source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/rg").to_path_buf(),
-                            target_name: None,
+                            name: None,
                             target: Target::Binary,
                         },
                         InstallFile {
                             source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1").to_path_buf(),
-                            target_name: None,
+                            name: None,
                             target: Target::Manpage { section: 1 },
                         },
                         InstallFile {
                             source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish").to_path_buf(),
-                            target_name: None,
+                            name: None,
                             target: Target::Completion { shell: Shell::Fish },
                         }
                     ],
