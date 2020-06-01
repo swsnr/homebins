@@ -6,7 +6,7 @@ url = "https://github.com/BurntSushi/ripgrep"
 [discover]
 binary = "rg"
 version_check.args = ["--version"]
-version_check.pattern = ""
+version_check.pattern = "ripgrep ([^ ]+)"
 
 [[install]]
 download = "https://github.com/BurntSushi/ripgrep/releases/download/12.1.1/ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz"

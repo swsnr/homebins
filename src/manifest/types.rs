@@ -7,32 +7,38 @@
 //! Manifest types.
 
 use anyhow::{Context, Result};
+use regex::Regex;
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Meta {
-    name: String,
-    version: String,
-    url: String,
+    pub name: String,
+    pub version: String,
+    pub url: String,
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct VersionCheck {
-    args: Vec<String>,
-    // TODO: Deserialize as regex
-    pattern: String,
+    pub args: Vec<String>,
+    pub pattern: String,
+}
+
+impl VersionCheck {
+    pub fn regex(&self) -> std::result::Result<Regex, regex::Error> {
+        Regex::new(&self.pattern)
+    }
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Discover {
-    binary: String,
-    version_check: VersionCheck,
+    pub binary: String,
+    pub version_check: VersionCheck,
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Checksums {
-    b2: String,
+    pub b2: String,
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -54,34 +60,30 @@ pub enum Target {
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct InstallFile {
-    source: PathBuf,
-    target_name: Option<String>,
+    pub source: PathBuf,
+    pub target_name: Option<String>,
     #[serde(flatten)]
-    target: Target,
+    pub target: Target,
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Install {
-    download: String,
-    checksums: Checksums,
-    files: Vec<InstallFile>,
+    pub download: String,
+    pub checksums: Checksums,
+    pub files: Vec<InstallFile>,
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Manifest {
-    meta: Meta,
-    discover: Discover,
-    install: Vec<Install>,
+    pub meta: Meta,
+    pub discover: Discover,
+    pub install: Vec<Install>,
 }
 
 impl Manifest {
     pub fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Manifest> {
         toml::from_str(&std::fs::read_to_string(path.as_ref())?)
             .with_context(|| format!("File {} is no valid manifest", path.as_ref().display()))
-    }
-
-    pub fn name(&self) -> &str {
-        &self.meta.name
     }
 }
 

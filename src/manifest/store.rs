@@ -6,7 +6,8 @@
 
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Error, Result};
+use fehler::throws;
 
 use super::types::Manifest;
 
@@ -37,6 +38,22 @@ impl ManifestStore {
                 })
         }
     }
+
+    #[throws]
+    pub fn manifests(&self) -> impl Iterator<Item = Result<Manifest>> {
+        self.base_dir
+            .read_dir()
+            .with_context(|| {
+                format!(
+                    "Failed to open manifest store at {}",
+                    self.base_dir.display()
+                )
+            })?
+            .map(|item| match item {
+                Ok(entry) => Manifest::read_from_path(entry.path()),
+                Err(err) => Err(Error::new(err)),
+            })
+    }
 }
 
 #[cfg(test)]
@@ -49,7 +66,7 @@ mod tests {
     fn load_existing_manifest() {
         let store = ManifestStore::open(Path::new("manifests/").to_path_buf());
         let manifest = store.load_manifest("ripgrep").unwrap().unwrap();
-        assert_eq!(manifest.name(), "ripgrep");
+        assert_eq!(manifest.meta.name, "ripgrep");
     }
 
     #[test]
