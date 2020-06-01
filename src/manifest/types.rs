@@ -105,7 +105,7 @@ mod tests {
                 binary: "rg".to_string(),
                 version_check: VersionCheck {
                     args: vec!["--version".to_string()],
-                    pattern: String::new(),
+                    pattern: "ripgrep ([^ ]+)".to_string(),
                 },
             },
             install: vec![
