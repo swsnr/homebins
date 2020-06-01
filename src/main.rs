@@ -22,7 +22,7 @@ fn list_installed(home: &Home, store: &ManifestStore) -> () {
             }
             Err(error) => {
                 eprintln!(
-                    "Failed to check version of {}: {}",
+                    "Failed to check version of {}: {:#}",
                     manifest.meta.name, error
                 );
                 failed = true;
@@ -51,7 +51,7 @@ fn main() {
         .subcommand(SubCommand::with_name("list").about("List installed bins"));
 
     if let Err(error) = process_args(&app.get_matches()) {
-        eprintln!("Error: {}", error);
+        eprintln!("Error: {:#}", error);
         std::process::exit(1)
     }
 }
