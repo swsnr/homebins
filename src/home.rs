@@ -21,7 +21,7 @@ pub struct Home {
 impl Home {
     pub fn new() -> Result<Home> {
         dirs::home_dir()
-            .ok_or(anyhow!("Home directory does not exist"))
+            .ok_or_else(|| anyhow!("Home directory does not exist"))
             .map(|home| Home { home })
     }
 
@@ -57,23 +57,34 @@ impl Home {
             })?;
             let version = pattern
                 .captures(output)
-                .ok_or(anyhow!(
-                    "Output of command {} with {:?} did not contain match for {}: {}",
-                    binary.display(),
-                    args,
-                    manifest.discover.version_check.pattern,
-                    output
-                ))?
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Output of command {} with {:?} did not contain match for {}: {}",
+                        binary.display(),
+                        args,
+                        manifest.discover.version_check.pattern,
+                        output
+                    )
+                })?
                 .get(1)
-                .ok_or(anyhow!(
-                    "Output of command {} with {:?} did not contain capture group 1 for {}: {}",
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Output of command {} with {:?} did not contain capture group 1 for {}: {}",
+                        binary.display(),
+                        args,
+                        manifest.discover.version_check.pattern,
+                        output
+                    )
+                })?
+                .as_str();
+            Some(Version::parse(version).with_context(|| {
+                format!(
+                    "Output of command {} with {:?} returned invalid version {}",
                     binary.display(),
                     args,
-                    manifest.discover.version_check.pattern,
-                    output
-                ))?
-                .as_str();
-            Some(Version::parse(version).with_context(|| format!("Invalid version"))?)
+                    version
+                )
+            })?)
         } else {
             None
         }

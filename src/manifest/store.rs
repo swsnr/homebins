@@ -31,7 +31,7 @@ impl ManifestStore {
             Err(anyhow!("Invalid manifest name: {}", name.as_ref()))
         } else {
             Manifest::read_from_path(manifest_file)
-                .map(|m| Some(m))
+                .map(Some)
                 .or_else(|error| match error.downcast_ref::<std::io::Error>() {
                     Some(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(None),
                     _ => Err(error),
