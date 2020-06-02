@@ -6,6 +6,7 @@
 
 use anyhow::{anyhow, Error};
 use clap::*;
+use colored::*;
 use fehler::{throw, throws};
 use homebins::{Home, ManifestStore};
 use std::path::Path;
@@ -22,8 +23,13 @@ fn list_installed(home: &Home, store: &ManifestStore) -> () {
             }
             Err(error) => {
                 eprintln!(
-                    "Failed to check version of {}: {:#}",
-                    manifest.meta.name, error
+                    "{}",
+                    format!(
+                        "Failed to check version of {}: {:#}",
+                        manifest.meta.name, error
+                    )
+                    .red()
+                    .bold()
                 );
                 failed = true;
             }
@@ -41,7 +47,9 @@ fn install(home: &mut Home, store: &ManifestStore, names: Vec<String>) -> () {
         let manifest = store
             .load_manifest(&name)?
             .ok_or(anyhow!("Binary {} not found", name))?;
+        println!("Installing {}", name.bold());
         home.install_manifest(&manifest)?;
+        println!("{}", format!("{} installed", name).green());
     }
 }
 
@@ -73,7 +81,7 @@ fn main() {
         );
 
     if let Err(error) = process_args(&app.get_matches()) {
-        eprintln!("Error: {:#}", error);
+        eprintln!("{}", format!("Error: {:#}", error).red().bold());
         std::process::exit(1)
     }
 }

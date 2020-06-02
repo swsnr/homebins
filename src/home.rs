@@ -7,10 +7,10 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use anyhow::{anyhow, Context, Error, Result};
+use colored::*;
 use fehler::{throw, throws};
 use semver::Version;
-
-use anyhow::{anyhow, Context, Error, Result};
 
 use crate::Manifest;
 use url::Url;
@@ -143,8 +143,8 @@ impl Home {
             )
         })?;
 
-        println!("Downloading to {}", work_dir.path().display());
         for install in &manifest.install {
+            println!("Downloading {}", install.download.as_str().bold());
             curl(
                 &install.download,
                 &work_dir.path().join(install.filename()?),
