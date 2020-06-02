@@ -4,18 +4,62 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use fehler::throws;
+use fehler::{throw, throws};
 use semver::Version;
 
 use anyhow::{anyhow, Context, Error, Result};
 
 use crate::Manifest;
+use url::Url;
 
 pub struct Home {
     home: PathBuf,
+}
+
+#[throws]
+fn curl(url: &Url, target: &Path) -> () {
+    let mut child = Command::new("curl")
+        .arg("--disable")
+        .arg("--globoff")
+        .arg("--cookie")
+        .arg("")
+        .arg("--fail")
+        .arg("--location")
+        .arg("--continue-at")
+        .arg("-")
+        .arg("--progress-bar")
+        .arg("--retry")
+        .arg("3")
+        .arg("--retry-delay")
+        .arg("3")
+        .arg("--output")
+        .arg(target)
+        .arg(url.as_str())
+        .spawn()
+        .with_context(|| {
+            format!(
+                "Failed start curl to download {} to {}",
+                url,
+                target.display()
+            )
+        })?;
+    let status = child.wait().with_context(|| {
+        format!(
+            "Failed to wait for curl to download {} to {}",
+            url,
+            target.display()
+        )
+    })?;
+    if !status.success() {
+        throw!(anyhow!(
+            "Failed to download {} to {}",
+            url,
+            target.display(),
+        ))
+    }
 }
 
 impl Home {
@@ -88,5 +132,28 @@ impl Home {
         } else {
             None
         }
+    }
+
+    #[throws]
+    pub fn install_manifest(&mut self, manifest: &Manifest) -> () {
+        let work_dir = tempfile::tempdir().with_context(|| {
+            format!(
+                "Failed to create temporary directory to install {}",
+                manifest.meta.name
+            )
+        })?;
+
+        println!("Downloading to {}", work_dir.path().display());
+        for install in &manifest.install {
+            curl(
+                &install.download,
+                &work_dir.path().join(install.filename()?),
+            )?;
+        }
+        Command::new("ls")
+            .arg("-la")
+            .current_dir(work_dir.path())
+            .spawn()?
+            .wait()?;
     }
 }

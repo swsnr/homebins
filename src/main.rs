@@ -35,11 +35,25 @@ fn list_installed(home: &Home, store: &ManifestStore) -> () {
     }
 }
 
+#[throws]
+fn install(home: &mut Home, store: &ManifestStore, names: Vec<String>) -> () {
+    for name in names {
+        let manifest = store
+            .load_manifest(&name)?
+            .ok_or(anyhow!("Binary {} not found", name))?;
+        home.install_manifest(&manifest)?;
+    }
+}
+
 fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
-    let home = Home::new()?;
+    let mut home = Home::new()?;
     let store = ManifestStore::open(Path::new("manifests/").to_path_buf());
     match matches.subcommand() {
         ("list", _) => list_installed(&home, &store),
+        ("install", Some(m)) => {
+            let names = values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit());
+            install(&mut home, &store, names)
+        }
         (other, _) => Err(anyhow!("Unknown subcommand: {}", other)),
     }
 }
@@ -48,7 +62,15 @@ fn main() {
     let app = app_from_crate!()
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::ColoredHelp)
-        .subcommand(SubCommand::with_name("list").about("List installed bins"));
+        .subcommand(SubCommand::with_name("list").about("List installed bins"))
+        .subcommand(
+            SubCommand::with_name("install").about("Install bins").arg(
+                Arg::with_name("name")
+                    .required(true)
+                    .multiple(true)
+                    .help("Binaries to install"),
+            ),
+        );
 
     if let Err(error) = process_args(&app.get_matches()) {
         eprintln!("Error: {:#}", error);

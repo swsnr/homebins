@@ -6,10 +6,12 @@
 
 //! Manifest types.
 
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Error, Result};
+use fehler::throws;
 use regex::Regex;
-use serde::Deserialize;
+use serde::{Deserialize, Deserializer};
 use std::path::{Path, PathBuf};
+use url::Url;
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Meta {
@@ -66,11 +68,31 @@ pub struct InstallFile {
     pub target: Target,
 }
 
+fn deserialize_url<'de, D>(d: D) -> std::result::Result<Url, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    String::deserialize(d).and_then(|s| Url::parse(&s).map_err(serde::de::Error::custom))
+}
+
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Install {
-    pub download: String,
+    #[serde(deserialize_with = "deserialize_url")]
+    pub download: Url,
     pub checksums: Checksums,
     pub files: Vec<InstallFile>,
+}
+
+impl Install {
+    #[throws]
+    pub fn filename(&self) -> &str {
+        self.download
+            .path_segments()
+            .ok_or(anyhow!("Expected path segments in URL {}", self.download))?
+            // If there's a path there's also a last segment
+            .last()
+            .unwrap()
+    }
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
@@ -110,7 +132,7 @@ mod tests {
             },
             install: vec![
                 Install {
-                    download: "https://github.com/BurntSushi/ripgrep/releases/download/12.1.1/ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz".to_string(),
+                    download: Url::parse("https://github.com/BurntSushi/ripgrep/releases/download/12.1.1/ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz").unwrap(),
                     checksums: Checksums {
                         b2: "1c97a37e109f818bce8e974eb3a29eb8d1ca488e048caff658696211e8cad23728a767a2d6b97fed365d24f9545f1bc49a3e2687ab437eb4189993ad5fe30663".to_string()
                     },
