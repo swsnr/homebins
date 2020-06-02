@@ -16,7 +16,7 @@ files = [
 ]
 
 [[install]]
-download = ""
+download = "https://github.com/jarun/nnn/releases/download/v3.2/nnn-v3.2.tar.gz"
 checksums.b2 = "1d5cb823d274e0ca8d15be75a6df149697d81abd5c60a4b7c6335317d77f5a071b917e3322b618924ad792defe3333d38e58fda0195bc0ed79bf72df371171b5"
 files = [
     { source = "nnn-3.2/nnn.1", type = "man", section = 1 }
