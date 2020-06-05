@@ -68,6 +68,15 @@ pub struct InstallFile {
     pub target: Target,
 }
 
+impl InstallFile {
+    pub fn is_executable(&self) -> bool {
+        match self.target {
+            Target::Binary => true,
+            _ => false,
+        }
+    }
+}
+
 fn deserialize_url<'de, D>(d: D) -> std::result::Result<Url, D::Error>
 where
     D: Deserializer<'de>,

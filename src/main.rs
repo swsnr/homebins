@@ -54,7 +54,7 @@ fn install(home: &mut Home, store: &ManifestStore, names: Vec<String>) -> () {
 }
 
 fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
-    let mut home = Home::new()?;
+    let mut home = Home::new();
     let store = ManifestStore::open(Path::new("manifests/").to_path_buf());
     match matches.subcommand() {
         ("list", _) => list_installed(&home, &store),

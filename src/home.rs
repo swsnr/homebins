@@ -4,8 +4,10 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
+use std::ffi::OsStr;
 use std::io::Write;
 use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -16,7 +18,7 @@ use url::Url;
 
 use anyhow::{anyhow, Context, Error, Result};
 
-use crate::{Checksums, Manifest};
+use crate::{Checksums, InstallFile, Manifest, Shell, Target};
 
 pub struct Home {
     home: PathBuf,
@@ -25,6 +27,7 @@ pub struct Home {
 
 #[throws]
 fn curl(url: &Url, target: &Path) -> () {
+    println!("curl -O {} {}", target.display(), url);
     let mut child = Command::new("curl")
         .arg("-gqb")
         .arg("")
@@ -92,6 +95,7 @@ fn maybe_extract(directory: &Path, file: &Path) -> () {
         || filename.ends_with(".tar.bz2")
         || filename.ends_with(".tar.xz")
     {
+        println!("tar xf {}", file.display());
         let status = Command::new("tar")
             .arg("xf")
             .arg(file)
@@ -128,16 +132,11 @@ fn maybe_extract(directory: &Path, file: &Path) -> () {
 }
 
 impl Home {
-    #[throws]
     pub fn new() -> Home {
-        let home = dirs::home_dir().ok_or_else(|| anyhow!("Home directory does not exist"))?;
-        let cache_dir = dirs::cache_dir()
-            .map(|d| d.join("homebins"))
-            .ok_or_else(|| anyhow!("Cache directory not available"))?;
-
-        let home = Home { home, cache_dir };
-        home.ensure_dirs()?;
-        home
+        // if $HOME or ~/.cache doesn't exist we're really screwed so let's just panic
+        let home = dirs::home_dir().unwrap();
+        let cache_dir = dirs::cache_dir().map(|d| d.join("homebins")).unwrap();
+        Home { home, cache_dir }
     }
 
     fn ensure_dirs(&self) -> Result<()> {
@@ -155,6 +154,14 @@ impl Home {
 
     pub fn bin_dir(&self) -> PathBuf {
         self.home.join(".local").join("bin")
+    }
+
+    pub fn man_dir(&self, section: u8) -> PathBuf {
+        self.home
+            .join(".local")
+            .join("share")
+            .join("nam")
+            .join(format!("man{}", section))
     }
 
     #[throws]
@@ -219,7 +226,30 @@ impl Home {
     }
 
     #[throws]
+    fn target(&self, file: &InstallFile) -> PathBuf {
+        let name: &OsStr = match &file.name {
+            Some(name) => name.as_ref(),
+            None => file.source.file_name().ok_or_else(|| {
+                anyhow!(
+                    "name not set for file and no file name in {}",
+                    file.source.display()
+                )
+            })?,
+        };
+        match file.target {
+            Target::Binary => self.bin_dir().join(name),
+            Target::Manpage { section } => self.man_dir(section).join(name),
+            Target::Completion { shell: Shell::Fish } => dirs::config_dir()
+                .unwrap()
+                .join("fish")
+                .join("completions")
+                .join(name),
+        }
+    }
+
+    #[throws]
     pub fn install_manifest(&mut self, manifest: &Manifest) -> () {
+        self.ensure_dirs()?;
         let work_dir = tempfile::tempdir().with_context(|| {
             format!(
                 "Failed to create temporary directory to install {}",
@@ -235,12 +265,34 @@ impl Home {
             }
             validate(&target, &install.checksums)?;
             maybe_extract(work_dir.path(), &target)?;
-            // install_files(&install.files)?
+            for file in &install.files {
+                let source = work_dir.path().join(&file.source);
+                let target = self.target(file)?;
+                let mode = if file.is_executable() { 0o755 } else { 0o644 };
+                println!(
+                    "install -m{:#o} {} {}",
+                    mode,
+                    file.source.display(),
+                    target.display()
+                );
+                std::fs::create_dir_all(target.parent().expect("Target must be absolute by now"))?;
+                std::fs::copy(&source, &target).with_context(|| {
+                    format!(
+                        "Failed to copy {} to {}",
+                        &file.source.display(),
+                        target.display()
+                    )
+                })?;
+                let mut permissions = std::fs::metadata(&target)?.permissions();
+                permissions.set_mode(mode);
+                std::fs::set_permissions(&target, permissions).with_context(|| {
+                    format!(
+                        "Failed to set mode {:o} on installed file {}",
+                        mode,
+                        target.display()
+                    )
+                })?;
+            }
         }
-        Command::new("ls")
-            .arg("-la")
-            .current_dir(work_dir.path())
-            .spawn()?
-            .wait()?;
     }
 }
