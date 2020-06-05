@@ -12,27 +12,31 @@ use homebins::{Home, ManifestStore};
 use std::path::Path;
 
 #[throws]
-fn list_installed(home: &Home, store: &ManifestStore) -> () {
+fn list(home: &Home, store: &ManifestStore, only_installed: bool) -> () {
     let mut failed = false;
     for manifest_res in store.manifests()? {
         let manifest = manifest_res?;
-        match home.installed_manifest_version(&manifest) {
-            Ok(None) => {}
-            Ok(Some(version)) => {
-                println!("{} -> {}", manifest.meta.name, version);
+        if only_installed {
+            match home.installed_manifest_version(&manifest) {
+                Ok(None) => {}
+                Ok(Some(version)) => {
+                    println!("{} -> {}", manifest.meta.name, version);
+                }
+                Err(error) => {
+                    eprintln!(
+                        "{}",
+                        format!(
+                            "Failed to check version of {}: {:#}",
+                            manifest.meta.name, error
+                        )
+                        .red()
+                        .bold()
+                    );
+                    failed = true;
+                }
             }
-            Err(error) => {
-                eprintln!(
-                    "{}",
-                    format!(
-                        "Failed to check version of {}: {:#}",
-                        manifest.meta.name, error
-                    )
-                    .red()
-                    .bold()
-                );
-                failed = true;
-            }
+        } else {
+            println!("{} -> {}", manifest.meta.name, manifest.meta.version);
         }
     }
 
@@ -57,7 +61,7 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
     let mut home = Home::new();
     let store = ManifestStore::open(Path::new("manifests/").to_path_buf());
     match matches.subcommand() {
-        ("list", _) => list_installed(&home, &store),
+        ("list", Some(m)) => list(&home, &store, m.is_present("installed")),
         ("install", Some(m)) => {
             let names = values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit());
             install(&mut home, &store, names)
@@ -70,7 +74,16 @@ fn main() {
     let app = app_from_crate!()
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::ColoredHelp)
-        .subcommand(SubCommand::with_name("list").about("List installed bins"))
+        .subcommand(
+            SubCommand::with_name("list")
+                .about("List installed bins")
+                .arg(
+                    Arg::with_name("installed")
+                        .short("i")
+                        .long("installed")
+                        .help("List installed binaries and installed version"),
+                ),
+        )
         .subcommand(
             SubCommand::with_name("install").about("Install bins").arg(
                 Arg::with_name("name")
