@@ -160,7 +160,7 @@ impl Home {
         self.home
             .join(".local")
             .join("share")
-            .join("nam")
+            .join("man")
             .join(format!("man{}", section))
     }
 
