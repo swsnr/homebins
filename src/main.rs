@@ -11,18 +11,37 @@ use fehler::{throw, throws};
 use homebins::{Home, ManifestStore};
 use std::path::Path;
 
+#[derive(Copy, Clone)]
+enum Installed {
+    All,
+    Outdated,
+}
+
+#[derive(Copy, Clone)]
+enum List {
+    All,
+    Installed(Installed),
+}
+
 #[throws]
-fn list(home: &Home, store: &ManifestStore, only_installed: bool) -> () {
+fn list(store: &ManifestStore, home: &Home, mode: List) -> () {
     let mut failed = false;
     for manifest_res in store.manifests()? {
         let manifest = manifest_res?;
-        if only_installed {
-            match home.installed_manifest_version(&manifest) {
-                Ok(None) => {}
-                Ok(Some(version)) => {
-                    println!("{} -> {}", manifest.meta.name, version);
+
+        match mode {
+            List::All => println!("{}: {}", manifest.meta.name, manifest.meta.version),
+            List::Installed(mode) => match (home.installed_manifest_version(&manifest), mode) {
+                (Ok(Some(version)), Installed::All) => {
+                    println!("{} = {}", manifest.meta.name, version)
                 }
-                Err(error) => {
+                (Ok(Some(version)), Installed::Outdated) if version < manifest.meta.version => {
+                    println!(
+                        "{} = {} -> {}",
+                        manifest.meta.name, version, manifest.meta.version
+                    )
+                }
+                (Err(error), _) => {
                     eprintln!(
                         "{}",
                         format!(
@@ -34,12 +53,10 @@ fn list(home: &Home, store: &ManifestStore, only_installed: bool) -> () {
                     );
                     failed = true;
                 }
-            }
-        } else {
-            println!("{} -> {}", manifest.meta.name, manifest.meta.version);
+                _ => {}
+            },
         }
     }
-
     if failed {
         throw!(anyhow!("Some version checks failed"));
     }
@@ -61,7 +78,9 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
     let mut home = Home::new();
     let store = ManifestStore::open(Path::new("manifests/").to_path_buf());
     match matches.subcommand() {
-        ("list", Some(m)) => list(&home, &store, m.is_present("installed")),
+        ("list", _) => list(&store, &home, List::All),
+        ("installed", _) => list(&store, &home, List::Installed(Installed::All)),
+        ("outdated", _) => list(&store, &home, List::Installed(Installed::Outdated)),
         ("install", Some(m)) => {
             let names = values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit());
             install(&mut home, &store, names)
@@ -74,16 +93,9 @@ fn main() {
     let app = app_from_crate!()
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::ColoredHelp)
-        .subcommand(
-            SubCommand::with_name("list")
-                .about("List installed bins")
-                .arg(
-                    Arg::with_name("installed")
-                        .short("i")
-                        .long("installed")
-                        .help("List installed binaries and installed version"),
-                ),
-        )
+        .subcommand(SubCommand::with_name("list").about("List available binaries"))
+        .subcommand(SubCommand::with_name("installed").about("List installed binaries"))
+        .subcommand(SubCommand::with_name("outdated").about("List outdated binaries"))
         .subcommand(
             SubCommand::with_name("install").about("Install bins").arg(
                 Arg::with_name("name")

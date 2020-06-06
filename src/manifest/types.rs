@@ -12,11 +12,23 @@ use regex::Regex;
 use serde::{Deserialize, Deserializer};
 use std::path::{Path, PathBuf};
 use url::Url;
+use versions::Versioning;
+
+fn deserialize_versioning<'de, D>(d: D) -> std::result::Result<Versioning, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    String::deserialize(d).and_then(|s| {
+        Versioning::new(&s)
+            .ok_or_else(|| serde::de::Error::custom(format!("Invalid version: {:?}", s)))
+    })
+}
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Meta {
     pub name: String,
-    pub version: String,
+    #[serde(deserialize_with = "deserialize_versioning")]
+    pub version: Versioning,
     pub url: String,
 }
 
@@ -129,7 +141,7 @@ mod tests {
         assert_eq!(manifest, Manifest {
             meta: Meta {
                 name: "ripgrep".to_string(),
-                version: "12.1.1".to_string(),
+                version: Versioning::new("12.1.1").unwrap(),
                 url: "https://github.com/BurntSushi/ripgrep".to_string(),
             },
             discover: Discover {
