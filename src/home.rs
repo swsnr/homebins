@@ -13,8 +13,8 @@ use std::process::{Command, Stdio};
 
 use colored::*;
 use fehler::{throw, throws};
-use semver::Version;
 use url::Url;
+use versions::Versioning;
 
 use anyhow::{anyhow, Context, Error, Result};
 
@@ -165,7 +165,7 @@ impl Home {
     }
 
     #[throws]
-    pub fn installed_manifest_version(&self, manifest: &Manifest) -> Option<Version> {
+    pub fn installed_manifest_version(&self, manifest: &Manifest) -> Option<Versioning> {
         let args = &manifest.discover.version_check.args;
         let binary = self.bin_dir().join(&manifest.discover.binary);
         if binary.is_file() {
@@ -212,9 +212,10 @@ impl Home {
                     )
                 })?
                 .as_str();
-            Some(Version::parse(version).with_context(|| {
-                format!(
-                    "Output of command {} with {:?} returned invalid version {}",
+
+            Some(Versioning::new(version).ok_or_else(|| {
+                anyhow!(
+                    "Output of command {} with {:?} returned invalid version {:?}",
                     binary.display(),
                     args,
                     version
