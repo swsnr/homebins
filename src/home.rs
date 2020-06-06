@@ -271,7 +271,7 @@ impl Home {
                 let target = self.target(file)?;
                 let mode = if file.is_executable() { 0o755 } else { 0o644 };
                 println!(
-                    "install -m{:#o} {} {}",
+                    "install -m{:o} {} {}",
                     mode,
                     file.source.display(),
                     target.display()
