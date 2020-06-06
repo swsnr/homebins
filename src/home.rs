@@ -227,7 +227,7 @@ impl Home {
     }
 
     #[throws]
-    fn target(&self, file: &InstallFile) -> PathBuf {
+    pub fn target(&self, file: &InstallFile) -> PathBuf {
         let name: &OsStr = match &file.name {
             Some(name) => name.as_ref(),
             None => file.source.file_name().ok_or_else(|| {

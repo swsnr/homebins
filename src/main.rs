@@ -63,6 +63,23 @@ fn list(store: &ManifestStore, home: &Home, mode: List) -> () {
 }
 
 #[throws]
+fn files(store: &ManifestStore, home: &Home, existing: bool, names: Vec<String>) -> () {
+    for name in names {
+        let manifest = store
+            .load_manifest(&name)?
+            .ok_or(anyhow!("Binary {} not found", name))?;
+        for install in manifest.install {
+            for file in install.files {
+                let target = home.target(&file)?;
+                if !existing || target.exists() {
+                    println!("{}", target.display());
+                }
+            }
+        }
+    }
+}
+
+#[throws]
 fn install(home: &mut Home, store: &ManifestStore, names: Vec<String>) -> () {
     for name in names {
         let manifest = store
@@ -81,6 +98,10 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
         ("list", _) => list(&store, &home, List::All),
         ("installed", _) => list(&store, &home, List::Installed(Installed::All)),
         ("outdated", _) => list(&store, &home, List::Installed(Installed::Outdated)),
+        ("files", Some(m)) => {
+            let names = values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit());
+            files(&store, &home, m.is_present("existing"), names)
+        }
         ("install", Some(m)) => {
             let names = values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit());
             install(&mut home, &store, names)
@@ -96,6 +117,22 @@ fn main() {
         .subcommand(SubCommand::with_name("list").about("List available binaries"))
         .subcommand(SubCommand::with_name("installed").about("List installed binaries"))
         .subcommand(SubCommand::with_name("outdated").about("List outdated binaries"))
+        .subcommand(
+            SubCommand::with_name("files")
+                .about("List files of binary")
+                .arg(
+                    Arg::with_name("existing")
+                        .short("e")
+                        .long("existing")
+                        .help("Only existing files"),
+                )
+                .arg(
+                    Arg::with_name("name")
+                        .required(true)
+                        .multiple(true)
+                        .help("Binaries to install"),
+                ),
+        )
         .subcommand(
             SubCommand::with_name("install").about("Install bins").arg(
                 Arg::with_name("name")
