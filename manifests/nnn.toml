@@ -6,7 +6,7 @@ url = "https://github.com/jarun/nnn"
 [discover]
 binary = "nnn"
 version_check.args = ["-V"]
-version_check.pattern = "^([^ ]+)$"
+version_check.pattern = "(?m)^(.+)$"
 
 [[install]]
 download = "https://github.com/jarun/nnn/releases/download/v3.2/nnn-static-3.2.x86-64.tar.gz"
