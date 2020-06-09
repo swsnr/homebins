@@ -32,15 +32,15 @@ fn list(store: &ManifestStore, home: &Home, mode: List) -> () {
         let manifest = manifest_res?;
 
         match mode {
-            List::All => println!("{}: {}", manifest.meta.name, manifest.meta.version),
+            List::All => println!("{}: {}", manifest.info.name, manifest.info.version),
             List::Installed(mode) => match (home.installed_manifest_version(&manifest), mode) {
                 (Ok(Some(version)), Installed::All) => {
-                    println!("{} = {}", manifest.meta.name, version)
+                    println!("{} = {}", manifest.info.name, version)
                 }
-                (Ok(Some(version)), Installed::Outdated) if version < manifest.meta.version => {
+                (Ok(Some(version)), Installed::Outdated) if version < manifest.info.version => {
                     println!(
                         "{} = {} -> {}",
-                        manifest.meta.name, version, manifest.meta.version
+                        manifest.info.name, version, manifest.info.version
                     )
                 }
                 (Err(error), _) => {
@@ -48,7 +48,7 @@ fn list(store: &ManifestStore, home: &Home, mode: List) -> () {
                         "{}",
                         format!(
                             "Failed to check version of {}: {:#}",
-                            manifest.meta.name, error
+                            manifest.info.name, error
                         )
                         .red()
                         .bold()

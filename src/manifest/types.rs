@@ -25,7 +25,7 @@ where
 }
 
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct Meta {
+pub struct Info {
     pub name: String,
     #[serde(deserialize_with = "deserialize_versioning")]
     pub version: Versioning,
@@ -118,7 +118,7 @@ impl Install {
 
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Manifest {
-    pub meta: Meta,
+    pub info: Info,
     pub discover: Discover,
     pub install: Vec<Install>,
 }
@@ -139,7 +139,7 @@ mod tests {
     fn deserialize_ripgrep_manifest() {
         let manifest = Manifest::read_from_path("manifests/ripgrep.toml").unwrap();
         assert_eq!(manifest, Manifest {
-            meta: Meta {
+            info: Info {
                 name: "ripgrep".to_string(),
                 version: Versioning::new("12.1.1").unwrap(),
                 url: "https://github.com/BurntSushi/ripgrep".to_string(),

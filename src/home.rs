@@ -177,7 +177,7 @@ impl Home {
             let pattern = manifest.discover.version_check.regex().with_context(|| {
                 format!(
                     "Version check for {} failed: Invalid regex {}",
-                    manifest.meta.name, manifest.discover.version_check.pattern
+                    manifest.info.name, manifest.discover.version_check.pattern
                 )
             })?;
             let output = std::str::from_utf8(&output.stdout).with_context(|| {
@@ -252,7 +252,7 @@ impl Home {
         let work_dir = tempfile::tempdir().with_context(|| {
             format!(
                 "Failed to create temporary directory to install {}",
-                manifest.meta.name
+                manifest.info.name
             )
         })?;
 
