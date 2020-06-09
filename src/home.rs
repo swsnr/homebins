@@ -126,8 +126,6 @@ fn maybe_extract(directory: &Path, file: &Path) -> () {
                 status,
             ))
         }
-    } else {
-        ()
     }
 }
 
