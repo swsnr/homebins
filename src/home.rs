@@ -130,7 +130,7 @@ fn maybe_extract(directory: &Path, file: &Path) -> () {
 }
 
 impl Home {
-    pub fn new() -> Home {
+    pub fn open() -> Home {
         // if $HOME or ~/.cache doesn't exist we're really screwed so let's just panic
         let home = dirs::home_dir().unwrap();
         let cache_dir = dirs::cache_dir().map(|d| d.join("homebins")).unwrap();

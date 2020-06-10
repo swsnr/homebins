@@ -69,7 +69,7 @@ fn files(store: &ManifestStore, home: &Home, existing: bool, names: Vec<String>)
     for name in names {
         let manifest = store
             .load_manifest(&name)?
-            .ok_or(anyhow!("Binary {} not found", name))?;
+            .ok_or_else(|| anyhow!("Binary {} not found", name))?;
         for install in manifest.install {
             for file in install.files {
                 let target = home.target(&file)?;
@@ -86,7 +86,7 @@ fn install(home: &mut Home, store: &ManifestStore, names: Vec<String>) -> () {
     for name in names {
         let manifest = store
             .load_manifest(&name)?
-            .ok_or(anyhow!("Binary {} not found", name))?;
+            .ok_or_else(|| anyhow!("Binary {} not found", name))?;
         println!("Installing {}", name.bold());
         home.install_manifest(&manifest)?;
         println!("{}", format!("{} installed", name).green());
@@ -94,7 +94,7 @@ fn install(home: &mut Home, store: &ManifestStore, names: Vec<String>) -> () {
 }
 
 fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
-    let mut home = Home::new();
+    let mut home = Home::open();
     let store = ManifestStore::open(Path::new("manifests/").to_path_buf());
     match matches.subcommand() {
         ("list", _) => list(&store, &home, List::All),

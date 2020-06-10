@@ -109,7 +109,7 @@ impl Install {
     pub fn filename(&self) -> &str {
         self.download
             .path_segments()
-            .ok_or(anyhow!("Expected path segments in URL {}", self.download))?
+            .ok_or_else(|| anyhow!("Expected path segments in URL {}", self.download))?
             // If there's a path there's also a last segment
             .last()
             .unwrap()
