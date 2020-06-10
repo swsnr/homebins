@@ -11,16 +11,24 @@ use fehler::throws;
 
 use super::types::Manifest;
 
+/// A store of manifests.
 #[derive(Debug)]
 pub struct ManifestStore {
     base_dir: PathBuf,
 }
 
 impl ManifestStore {
+    /// Open a directory of manifests.
+    ///
+    /// Does not fail because this method doesn't attempt to access `base_dir` just yet.
     pub fn open(base_dir: PathBuf) -> ManifestStore {
         ManifestStore { base_dir }
     }
 
+    /// Load a manifest from this store.
+    ///
+    /// Return the manifest if it exists or None if the store has no manifest with the given name.
+    /// Fail if the store doesn't exist or isn't readable.
     pub fn load_manifest<S: AsRef<str>>(&self, name: S) -> Result<Option<Manifest>> {
         let manifest_file = self.base_dir.join(name.as_ref()).with_extension("toml");
         if name.as_ref().is_empty()
@@ -39,6 +47,7 @@ impl ManifestStore {
         }
     }
 
+    /// Iterate over all manifests in this store.
     #[throws]
     pub fn manifests(&self) -> impl Iterator<Item = Result<Manifest>> {
         self.base_dir

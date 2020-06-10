@@ -24,63 +24,97 @@ where
     })
 }
 
+/// Information about the binary in this manifest.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Info {
+    /// The name of the binary.
     pub name: String,
+    /// The version of the binary this manifest describes.
     #[serde(deserialize_with = "deserialize_versioning")]
     pub version: Versioning,
+    /// An URL for this binary, i.e. its website.
     pub url: String,
 }
 
+/// How to check the version of a binary.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct VersionCheck {
+    /// The arguments to pass to the binary to make it output its version.
     pub args: Vec<String>,
+    /// A regular expression to extract the version from the binary invoked with `args`.
     pub pattern: String,
 }
 
 impl VersionCheck {
+    /// Create a regex from the `pattern`.
     pub fn regex(&self) -> std::result::Result<Regex, regex::Error> {
         Regex::new(&self.pattern)
     }
 }
 
+/// How to check whether a binary exists.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Discover {
+    /// The name of the binary to look for.
+    ///
+    /// Just the file name in `$HOME/.local/bin`.
     pub binary: String,
+    /// How to check the version of this binary.
     pub version_check: VersionCheck,
 }
 
+/// Checksums for a file download.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Checksums {
+    /// A blake2 checksum.
     pub b2: String,
 }
 
+/// Known shells.
 #[derive(Debug, PartialEq, Deserialize)]
 pub enum Shell {
+    /// The Fish shell.
     #[serde(rename = "fish")]
     Fish,
 }
 
+/// The kind of installation target.
 #[derive(Debug, PartialEq, Deserialize)]
 #[serde(tag = "type")]
 pub enum Target {
+    /// A binary to install to `$HOME/.local/bin` as executable.
     #[serde(rename = "binary", alias = "bin")]
     Binary,
+    /// A manpage to install at the given secion in `$HOME/.local/share/man` as regular file.
     #[serde(rename = "manpage", alias = "man")]
-    Manpage { section: u8 },
+    Manpage {
+        /// The section of this manpage, from 1 to 9.
+        section: u8,
+    },
+    /// An tab completion helper for a shell.
     #[serde(rename = "completion")]
-    Completion { shell: Shell },
+    Completion {
+        /// The shell to install this completion file for.
+        shell: Shell,
+    },
 }
 
+/// A file to install to $HOME.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct InstallFile {
+    /// The path of this file within the containing download.
     pub source: PathBuf,
+    /// An explicit file name to install as.
+    ///
+    /// If absent use the file name of `source`.
     pub name: Option<String>,
+    /// The target to install the file as.
     #[serde(flatten)]
     pub target: Target,
 }
 
 impl InstallFile {
+    /// Whether this file needs to be installed as executable.
     pub fn is_executable(&self) -> bool {
         match self.target {
             Target::Binary => true,
@@ -96,15 +130,22 @@ where
     String::deserialize(d).and_then(|s| Url::parse(&s).map_err(serde::de::Error::custom))
 }
 
+/// An installation definition.
+///
+/// A URL to download, extract if required, and install to $HOME.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Install {
+    /// The URL to download from.
     #[serde(deserialize_with = "deserialize_url")]
     pub download: Url,
+    /// Checksums to verify the download with.
     pub checksums: Checksums,
+    /// Files to install from this download.
     pub files: Vec<InstallFile>,
 }
 
 impl Install {
+    /// The file name of the URL, that is, the final segment of the path of `download`.
     #[throws]
     pub fn filename(&self) -> &str {
         self.download
@@ -116,14 +157,19 @@ impl Install {
     }
 }
 
+/// A manifest describing an installable binary.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Manifest {
+    /// Information about this binary.
     pub info: Info,
+    /// How to discover whether this binary already exists.
     pub discover: Discover,
+    /// A list of install steps to install this binary.
     pub install: Vec<Install>,
 }
 
 impl Manifest {
+    /// Read a manifest from the file denoted by the given `path`.
     pub fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Manifest> {
         toml::from_str(&std::fs::read_to_string(path.as_ref())?)
             .with_context(|| format!("File {} is no valid manifest", path.as_ref().display()))

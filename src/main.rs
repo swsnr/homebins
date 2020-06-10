@@ -4,7 +4,9 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-#![deny(warnings, clippy::all)]
+//! A command line tool to install binaries to $HOME.
+
+#![deny(warnings, clippy::all, missing_docs)]
 
 use anyhow::{anyhow, Error};
 use clap::*;

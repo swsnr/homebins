@@ -20,6 +20,9 @@ use anyhow::{anyhow, Context, Error, Result};
 
 use crate::{Checksums, InstallFile, Manifest, Shell, Target};
 
+/// The home directory.
+///
+/// Keeps track of the $HOME path and other directories we need to access.
 pub struct Home {
     home: PathBuf,
     cache_dir: PathBuf,
@@ -130,6 +133,9 @@ fn maybe_extract(directory: &Path, file: &Path) -> () {
 }
 
 impl Home {
+    /// Open the real $HOME directory.
+    ///
+    /// This function can panic if the dirs crate cannot figure out either $HOME or $XDG_CACHE_DIR.
     pub fn open() -> Home {
         // if $HOME or ~/.cache doesn't exist we're really screwed so let's just panic
         let home = dirs::home_dir().unwrap();
@@ -146,14 +152,23 @@ impl Home {
         })
     }
 
+    /// The directory to download files from manifests to.
+    ///
+    /// This is a subdirectory of our cache directory.
     pub fn download_dir(&self) -> PathBuf {
         self.cache_dir.join("downloads")
     }
 
+    /// The directory to install binaries to.
+    ///
+    /// This is `$HOME/.local/bin`.
     pub fn bin_dir(&self) -> PathBuf {
         self.home.join(".local").join("bin")
     }
 
+    /// The directory to install man pages of the given section to.
+    ///
+    /// This is the corresponding sub-directory of `$HOME/.local/share/man`.
     pub fn man_dir(&self, section: u8) -> PathBuf {
         self.home
             .join(".local")
@@ -162,6 +177,13 @@ impl Home {
             .join(format!("man{}", section))
     }
 
+    /// Get the installed version of the given manifest.
+    ///
+    /// Attempt to invoke the version check denoted in the manifest, i.e. the given binary with the
+    /// version check arguments, and use the pattern to extract a version number.
+    ///
+    /// Return `None` if the binary doesn't exist; fail if we cannot invoke it for other reasons or
+    /// if we fail to parse the version from other.
     #[throws]
     pub fn installed_manifest_version(&self, manifest: &Manifest) -> Option<Versioning> {
         let args = &manifest.discover.version_check.args;
@@ -224,6 +246,10 @@ impl Home {
         }
     }
 
+    /// Get the file system target for the given file to install.
+    ///
+    /// Return the path which we must copy the given file to.  Fails if the file has no explicit
+    /// file name and no file name in its source.
     #[throws]
     pub fn target(&self, file: &InstallFile) -> PathBuf {
         let name: &OsStr = match &file.name {
@@ -246,6 +272,10 @@ impl Home {
         }
     }
 
+    /// Install a manifest.
+    ///
+    /// Download the files denoted by the given manifest, extract as needed and then copy files to
+    /// $HOME as described in the manifest.
     #[throws]
     pub fn install_manifest(&mut self, manifest: &Manifest) -> () {
         self.ensure_dirs()?;
