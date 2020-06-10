@@ -183,7 +183,7 @@ mod tests {
 
     #[test]
     fn deserialize_ripgrep_manifest() {
-        let manifest = Manifest::read_from_path("manifests/ripgrep.toml").unwrap();
+        let manifest = Manifest::read_from_path("tests/manifests/ripgrep.toml").unwrap();
         assert_eq!(manifest, Manifest {
             info: Info {
                 name: "ripgrep".to_string(),

@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn load_existing_manifest() {
-        let store = ManifestStore::open(Path::new("manifests/").to_path_buf());
+        let store = ManifestStore::open(Path::new("tests/manifests/").to_path_buf());
         let manifest = store.load_manifest("ripgrep").unwrap().unwrap();
         assert_eq!(manifest.info.name, "ripgrep");
     }
