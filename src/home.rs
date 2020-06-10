@@ -95,6 +95,7 @@ fn validate(target: &Path, checksums: &Checksums) -> () {
 fn maybe_extract(directory: &Path, file: &Path) -> () {
     let filename = file.file_name().unwrap_or_default().to_string_lossy();
     if filename.ends_with(".tar.gz")
+        || filename.ends_with(".tgz")
         || filename.ends_with(".tar.bz2")
         || filename.ends_with(".tar.xz")
     {

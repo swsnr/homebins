@@ -1,0 +1,44 @@
+[info]
+name = "hub"
+version = "2.14.2"
+url = "https://github.com/github/hub"
+
+[discover]
+binary = "hub"
+version_check.args = ["--version"]
+version_check.pattern = "(?m)hub version ([0-9.]+)$"
+
+[[install]]
+download = "https://github.com/github/hub/releases/download/v2.14.2/hub-linux-amd64-2.14.2.tgz"
+checksums.b2 = "e6e0735738641761c4c6ed0a6ef71767334d86b61d089a37e4ee4214e1fe9a34c39f0224912c1526e5da31c1ae5293971a19a51ced9822d2e506c161a66cb13e"
+files = [
+    { source = "hub-linux-amd64-2.14.2/bin/hub", type = "bin" },
+    { source = "hub-linux-amd64-2.14.2/etc/hub.fish_completion", name = "hub.fish", type = "completion", shell = "fish"},
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-checkout.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-fetch.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-api.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-push.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-apply.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-merge.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-create.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-init.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-alias.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-delete.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-release.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-fork.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-cherry-pick.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-am.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-sync.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-browse.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-issue.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-compare.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-pr.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-clone.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-submodule.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-ci-status.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-pull-request.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-gist.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-help.1", type = "manpage", section = 1 },
+    { source = "hub-linux-amd64-2.14.2/share/man/man1/hub-remote.1", type = "manpage", section = 1 },
+]
