@@ -14,5 +14,6 @@ mod home;
 mod manifest;
 
 pub use home::Home;
+pub use manifest::repo::ManifestRepo;
 pub use manifest::store::ManifestStore;
 pub use manifest::types::*;

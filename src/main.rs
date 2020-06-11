@@ -8,12 +8,12 @@
 
 #![deny(warnings, clippy::all, missing_docs)]
 
-use anyhow::{anyhow, Error};
 use clap::*;
 use colored::*;
 use fehler::{throw, throws};
+
+use anyhow::{anyhow, Error};
 use homebins::{Home, ManifestStore};
-use std::path::Path;
 
 #[derive(Copy, Clone)]
 enum Installed {
@@ -97,7 +97,13 @@ fn install(home: &mut Home, store: &ManifestStore, names: Vec<String>) -> () {
 
 fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
     let mut home = Home::open();
-    let store = ManifestStore::open(Path::new("manifests/").to_path_buf());
+
+    let repo = home.cloned_manifest_repo(
+        "https://github.com/lunaryorn/homebin-manifests".into(),
+        "lunaryorn",
+    )?;
+
+    let store = repo.store();
     match matches.subcommand() {
         ("list", _) => list(&store, &home, List::All),
         ("installed", _) => list(&store, &home, List::Installed(Installed::All)),

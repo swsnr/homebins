@@ -18,7 +18,7 @@ use versions::Versioning;
 
 use anyhow::{anyhow, Context, Error, Result};
 
-use crate::{Checksums, InstallFile, Manifest, Shell, Target};
+use crate::{Checksums, InstallFile, Manifest, ManifestRepo, Shell, Target};
 
 /// The home directory.
 ///
@@ -144,20 +144,18 @@ impl Home {
         Home { home, cache_dir }
     }
 
-    fn ensure_dirs(&self) -> Result<()> {
-        std::fs::create_dir_all(&self.download_dir()).with_context(|| {
-            format!(
-                "Failed to create download directory at {}",
-                self.download_dir().display()
-            )
-        })
-    }
-
     /// The directory to download files from manifests to.
     ///
     /// This is a subdirectory of our cache directory.
     pub fn download_dir(&self) -> PathBuf {
         self.cache_dir.join("downloads")
+    }
+
+    /// The directory to clone manifest repositories to.
+    ///
+    /// This is a subdirectory of our cache directory.
+    pub fn manifest_repos_dir(&self) -> PathBuf {
+        self.cache_dir.join("manifest_repos")
     }
 
     /// The directory to install binaries to.
@@ -176,6 +174,21 @@ impl Home {
             .join("share")
             .join("man")
             .join(format!("man{}", section))
+    }
+
+    /// Clone a manifest repository from the given remote under the given name.
+    ///
+    /// The repository gets cloned to a subdirectory of [`manifest_repos_dir`].
+    /// See [`ManifestRepo::cloned`] for details.
+    pub fn cloned_manifest_repo(&self, remote: String, name: &str) -> Result<ManifestRepo> {
+        let dir = self.manifest_repos_dir();
+        std::fs::create_dir_all(&dir).with_context(|| {
+            format!(
+                "Failed to create directory for manifest repos at {}",
+                dir.display()
+            )
+        })?;
+        ManifestRepo::cloned(remote, dir.join(name))
     }
 
     /// Get the installed version of the given manifest.
@@ -279,7 +292,12 @@ impl Home {
     /// $HOME as described in the manifest.
     #[throws]
     pub fn install_manifest(&mut self, manifest: &Manifest) -> () {
-        self.ensure_dirs()?;
+        std::fs::create_dir_all(&self.download_dir()).with_context(|| {
+            format!(
+                "Failed to create download directory at {}",
+                self.download_dir().display()
+            )
+        })?;
         let work_dir = tempfile::tempdir().with_context(|| {
             format!(
                 "Failed to create temporary directory to install {}",
