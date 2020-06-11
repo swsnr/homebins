@@ -106,6 +106,7 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
     let store = repo.store();
     match matches.subcommand() {
         ("list", _) => list(&store, &home, List::All),
+        ("", _) => list(&store, &home, List::Installed(Installed::All)),
         ("installed", _) => list(&store, &home, List::Installed(Installed::All)),
         ("outdated", _) => list(&store, &home, List::Installed(Installed::Outdated)),
         ("files", Some(m)) => {
@@ -125,7 +126,7 @@ fn main() {
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::ColoredHelp)
         .subcommand(SubCommand::with_name("list").about("List available binaries"))
-        .subcommand(SubCommand::with_name("installed").about("List installed binaries"))
+        .subcommand(SubCommand::with_name("installed").about("List installed binaries (default)"))
         .subcommand(SubCommand::with_name("outdated").about("List outdated binaries"))
         .subcommand(
             SubCommand::with_name("files")
