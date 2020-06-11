@@ -34,15 +34,22 @@ fn list(store: &ManifestStore, home: &Home, mode: List) -> () {
         let manifest = manifest_res?;
 
         match mode {
-            List::All => println!("{}: {}", manifest.info.name, manifest.info.version),
+            List::All => println!(
+                "{}: {} ({})",
+                manifest.info.name.bold(),
+                manifest.info.version,
+                manifest.info.url.blue(),
+            ),
             List::Installed(mode) => match (home.installed_manifest_version(&manifest), mode) {
                 (Ok(Some(version)), Installed::All) => {
-                    println!("{} = {}", manifest.info.name, version)
+                    println!("{} = {}", manifest.info.name.bold(), version)
                 }
                 (Ok(Some(version)), Installed::Outdated) if version < manifest.info.version => {
                     println!(
                         "{} = {} -> {}",
-                        manifest.info.name, version, manifest.info.version
+                        manifest.info.name.bold(),
+                        format!("{}", version).red(),
+                        format!("{}", manifest.info.version).bold().green()
                     )
                 }
                 (Err(error), _) => {
