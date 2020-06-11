@@ -145,12 +145,14 @@ fn main() {
                 ),
         )
         .subcommand(
-            SubCommand::with_name("install").about("Install bins").arg(
-                Arg::with_name("name")
-                    .required(true)
-                    .multiple(true)
-                    .help("Binaries to install"),
-            ),
+            SubCommand::with_name("install")
+                .about("Install binaries")
+                .arg(
+                    Arg::with_name("name")
+                        .required(true)
+                        .multiple(true)
+                        .help("Binaries to install"),
+                ),
         );
 
     if let Err(error) = process_args(&app.get_matches()) {
