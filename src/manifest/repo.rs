@@ -99,7 +99,7 @@ impl ManifestRepo {
             ));
         }
 
-        if !Command::new("git")
+        let status = Command::new("git")
             .arg("-C")
             .arg(&target_directory)
             .args(&["fetch", "--quiet", "homebins", "master"])
@@ -110,9 +110,8 @@ impl ManifestRepo {
                     "Failed to run git fetch homebins in {}",
                     target_directory.display()
                 )
-            })?
-            .success()
-        {
+            })?;
+        if !status.success() {
             throw!(anyhow!("git fetch homebins failed"));
         }
 
@@ -122,7 +121,7 @@ impl ManifestRepo {
             .args(&["reset", "--quiet", "--hard", "homebins/master"])
             .spawn()
             .and_then(|mut c| c.wait())
-            .with_context(|| format!("Failed to run git reset --hard homebins/master"))?
+            .with_context(|| "Failed to run git reset --hard homebins/master")?
             .success()
         {
             throw!(anyhow!("git reset --hard homebins/master failed"));
