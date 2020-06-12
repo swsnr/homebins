@@ -151,6 +151,16 @@ impl Home {
         self.cache_dir.join("downloads")
     }
 
+    /// The download directory for a specific manifest.
+    ///
+    /// This is a subdirectory of the download directory with the name and
+    /// the version of the given manifest.
+    pub fn manifest_download_dir(&self, manifest: &Manifest) -> PathBuf {
+        self.download_dir()
+            .join(&manifest.info.name)
+            .join(&manifest.info.version.to_string())
+    }
+
     /// The directory to clone manifest repositories to.
     ///
     /// This is a subdirectory of our cache directory.
@@ -301,12 +311,14 @@ impl Home {
     /// $HOME as described in the manifest.
     #[throws]
     pub fn install_manifest(&mut self, manifest: &Manifest) -> () {
-        std::fs::create_dir_all(&self.download_dir()).with_context(|| {
+        let download_directory = self.manifest_download_dir(manifest);
+        std::fs::create_dir_all(&download_directory).with_context(|| {
             format!(
                 "Failed to create download directory at {}",
                 self.download_dir().display()
             )
         })?;
+
         let work_dir = tempfile::tempdir().with_context(|| {
             format!(
                 "Failed to create temporary directory to install {}",
@@ -315,7 +327,7 @@ impl Home {
         })?;
 
         for install in &manifest.install {
-            let target = self.download_dir().join(install.filename()?);
+            let target = download_directory.join(install.filename()?);
             if !target.is_file() {
                 println!("Downloading {}", install.download.as_str().bold());
                 curl(&install.download, &target)?;
