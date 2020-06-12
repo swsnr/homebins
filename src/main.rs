@@ -172,6 +172,11 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
             &mut home,
             values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()),
         ),
+        ("manifest-list", Some(m)) => subcommands::manifest_list(
+            &home,
+            values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
+            List::All,
+        ),
         ("manifest-installed", Some(m)) => subcommands::manifest_list(
             &home,
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
@@ -226,6 +231,16 @@ fn main() {
                         .required(true)
                         .multiple(true)
                         .help("Binaries to install"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("manifest-list")
+                .about("List info for given manifest files")
+                .arg(
+                    Arg::with_name("manifest-file")
+                        .required(true)
+                        .multiple(true)
+                        .help("Manifest files"),
                 ),
         )
         .subcommand(
