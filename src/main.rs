@@ -40,10 +40,11 @@ mod subcommands {
         for manifest in manifests {
             match mode {
                 List::All => println!(
-                    "{}: {} ({})",
+                    "{}: {} – {} ({})",
                     manifest.info.name.bold(),
                     manifest.info.version,
                     manifest.info.url.blue(),
+                    format!("{}", manifest.info.license).italic()
                 ),
                 List::Installed(mode) => match (home.installed_manifest_version(&manifest), mode) {
                     (Ok(Some(version)), Installed::All) => {

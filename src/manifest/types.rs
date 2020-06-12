@@ -24,6 +24,14 @@ where
     })
 }
 
+fn deserialize_spdx<'de, D>(d: D) -> std::result::Result<spdx::Expression, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    String::deserialize(d)
+        .and_then(|s| spdx::Expression::parse(&s).map_err(serde::de::Error::custom))
+}
+
 /// Information about the binary in this manifest.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct Info {
@@ -34,6 +42,11 @@ pub struct Info {
     pub version: Versioning,
     /// An URL for this binary, i.e. its website.
     pub url: String,
+    #[serde(deserialize_with = "deserialize_spdx", alias = "licence")]
+    /// The license of this binary.
+    ///
+    /// This is an SPDX expression describing the licenses this binary is distributed under.
+    pub license: spdx::Expression,
 }
 
 /// How to check the version of a binary.
@@ -189,6 +202,7 @@ mod tests {
                 name: "ripgrep".to_string(),
                 version: Versioning::new("12.1.1").unwrap(),
                 url: "https://github.com/BurntSushi/ripgrep".to_string(),
+                license: spdx::Expression::parse("Unlicense OR MIT").unwrap(),
             },
             discover: Discover {
                 binary: "rg".to_string(),
