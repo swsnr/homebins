@@ -18,7 +18,7 @@ use versions::Versioning;
 
 use anyhow::{anyhow, Context, Error, Result};
 
-use crate::{Checksums, InstallFile, Manifest, ManifestRepo, Shell, Target};
+use crate::{Checksums, InstallFile, Manifest, ManifestRepo, ManifestStore, Shell, Target};
 
 /// The home directory.
 ///
@@ -180,7 +180,7 @@ impl Home {
     ///
     /// The repository gets cloned to a subdirectory of [`manifest_repos_dir`].
     /// See [`ManifestRepo::cloned`] for details.
-    pub fn cloned_manifest_repo(&self, remote: String, name: &str) -> Result<ManifestRepo> {
+    fn cloned_manifest_repo(&mut self, remote: String, name: &str) -> Result<ManifestRepo> {
         let dir = self.manifest_repos_dir();
         std::fs::create_dir_all(&dir).with_context(|| {
             format!(
@@ -189,6 +189,15 @@ impl Home {
             )
         })?;
         ManifestRepo::cloned(remote, dir.join(name))
+    }
+
+    /// Get the manifest store to install from.
+    pub fn manifest_store(&mut self) -> Result<ManifestStore> {
+        self.cloned_manifest_repo(
+            "https://github.com/lunaryorn/homebin-manifests".into(),
+            "lunaryorn",
+        )
+        .map(|repo| repo.store())
     }
 
     /// Get the installed version of the given manifest.
