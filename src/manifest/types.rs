@@ -84,7 +84,7 @@ pub struct Checksums {
 }
 
 /// Known shells.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Copy, Clone)]
 pub enum Shell {
     /// The Fish shell.
     #[serde(rename = "fish")]
@@ -92,7 +92,7 @@ pub enum Shell {
 }
 
 /// The kind of installation target.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Deserialize, Copy, Clone)]
 #[serde(tag = "type")]
 pub enum Target {
     /// A binary to install to `$HOME/.local/bin` as executable.
@@ -112,6 +112,16 @@ pub enum Target {
     },
 }
 
+impl Target {
+    /// Whether this file needs to be installed as executable.
+    pub fn is_executable(&self) -> bool {
+        match self {
+            Target::Binary => true,
+            _ => false,
+        }
+    }
+}
+
 /// A file to install to $HOME.
 #[derive(Debug, PartialEq, Deserialize)]
 pub struct InstallFile {
@@ -126,16 +136,6 @@ pub struct InstallFile {
     pub target: Target,
 }
 
-impl InstallFile {
-    /// Whether this file needs to be installed as executable.
-    pub fn is_executable(&self) -> bool {
-        match self.target {
-            Target::Binary => true,
-            _ => false,
-        }
-    }
-}
-
 fn deserialize_url<'de, D>(d: D) -> std::result::Result<Url, D::Error>
 where
     D: Deserializer<'de>,
@@ -143,21 +143,43 @@ where
     String::deserialize(d).and_then(|s| Url::parse(&s).map_err(serde::de::Error::custom))
 }
 
+/// What to install from a download.
+#[derive(Debug, PartialEq, Deserialize)]
+#[serde(untagged)]
+pub enum Install {
+    /// Install the downloaded file directly as a single file.
+    SingleFile {
+        /// An explicit file name to install as.
+        ///
+        /// If absent use the file name of the download.
+        name: Option<String>,
+        /// The target to install the file as.
+        #[serde(flatten)]
+        target: Target,
+    },
+    /// Install files extracted from a downloaded archive.
+    FilesFromArchive {
+        /// A list of files to install.
+        files: Vec<InstallFile>,
+    },
+}
+
 /// An installation definition.
 ///
 /// A URL to download, extract if required, and install to $HOME.
 #[derive(Debug, PartialEq, Deserialize)]
-pub struct Install {
+pub struct InstallDownload {
     /// The URL to download from.
     #[serde(deserialize_with = "deserialize_url")]
     pub download: Url,
     /// Checksums to verify the download with.
     pub checksums: Checksums,
     /// Files to install from this download.
-    pub files: Vec<InstallFile>,
+    #[serde(flatten)]
+    pub install: Install,
 }
 
-impl Install {
+impl InstallDownload {
     /// The file name of the URL, that is, the final segment of the path of `download`.
     #[throws]
     pub fn filename(&self) -> &str {
@@ -178,7 +200,7 @@ pub struct Manifest {
     /// How to discover whether this binary already exists.
     pub discover: Discover,
     /// A list of install steps to install this binary.
-    pub install: Vec<Install>,
+    pub install: Vec<InstallDownload>,
 }
 
 impl Manifest {
@@ -195,7 +217,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn deserialize_ripgrep_manifest() {
+    fn deserialize_manifest_with_files() {
         let manifest = Manifest::read_from_path("tests/manifests/ripgrep.toml").unwrap();
         assert_eq!(manifest, Manifest {
             info: Info {
@@ -212,30 +234,63 @@ mod tests {
                 },
             },
             install: vec![
-                Install {
+                InstallDownload {
                     download: Url::parse("https://github.com/BurntSushi/ripgrep/releases/download/12.1.1/ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz").unwrap(),
                     checksums: Checksums {
                         b2: "1c97a37e109f818bce8e974eb3a29eb8d1ca488e048caff658696211e8cad23728a767a2d6b97fed365d24f9545f1bc49a3e2687ab437eb4189993ad5fe30663".to_string()
                     },
-                    files: vec![
-                        InstallFile {
-                            source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/rg").to_path_buf(),
-                            name: None,
-                            target: Target::Binary,
-                        },
-                        InstallFile {
-                            source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1").to_path_buf(),
-                            name: None,
-                            target: Target::Manpage { section: 1 },
-                        },
-                        InstallFile {
-                            source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish").to_path_buf(),
-                            name: None,
-                            target: Target::Completion { shell: Shell::Fish },
-                        }
-                    ],
+                    install: Install::FilesFromArchive {
+                        files: vec![
+                            InstallFile {
+                                source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/rg").to_path_buf(),
+                                name: None,
+                                target: Target::Binary,
+                            },
+                            InstallFile {
+                                source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1").to_path_buf(),
+                                name: None,
+                                target: Target::Manpage { section: 1 },
+                            },
+                            InstallFile {
+                                source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish").to_path_buf(),
+                                name: None,
+                                target: Target::Completion { shell: Shell::Fish },
+                            }
+                        ],
+                    }
                 }
             ],
         })
+    }
+
+    #[test]
+    fn deserialize_manifest_with_single_file() {
+        let manifest = Manifest::read_from_path("tests/manifests/shfmt.toml").unwrap();
+        assert_eq!(
+            manifest,
+            Manifest {
+                info: Info {
+                    name: "shfmt".to_string(),
+                    version: Versioning::new("3.1.1").unwrap(),
+                    url: "https://github.com/mvdan/sh".to_string(),
+                    license: spdx::Expression::parse("BSD-3-Clause").unwrap()
+                },
+                discover: Discover {
+                    binary: "shfmt".to_string(),
+                    version_check: VersionCheck {
+                        args: vec!["-version".to_string()],
+                        pattern: "v(\\d\\S+)".to_string()
+                    }
+                },
+                install: vec![InstallDownload {
+                    download: Url::parse("https://github.com/mvdan/sh/releases/download/v3.1.1/shfmt_v3.1.1_linux_amd64").unwrap(),
+                    checksums: Checksums { b2: "15b203be254ca46b25d35654ceaae91b7e9200f49cd81e103eae7dd80d9e73ab4455c33e6f20073ba2b45f93b06e94e46556c1ab619812718185e071576cf48c".to_string() },
+                    install: Install::SingleFile {
+                        name: Some("shfmt".to_string()),
+                        target: Target::Binary
+                    }
+                }]
+            }
+        )
     }
 }

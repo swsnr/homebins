@@ -18,7 +18,7 @@ use versions::Versioning;
 
 use anyhow::{anyhow, Context, Error, Result};
 
-use crate::{Checksums, InstallFile, Manifest, ManifestRepo, ManifestStore, Shell, Target};
+use crate::{Checksums, Install, Manifest, ManifestRepo, ManifestStore, Shell, Target};
 
 /// The home directory.
 ///
@@ -317,17 +317,17 @@ impl Home {
     /// Return the path which we must copy the given file to.  Fails if the file has no explicit
     /// file name and no file name in its source.
     #[throws]
-    pub fn target(&self, file: &InstallFile) -> PathBuf {
-        let name: &OsStr = match &file.name {
+    pub fn target<P: AsRef<Path>>(&self, source: P, name: Option<&str>, target: Target) -> PathBuf {
+        let name: &OsStr = match name {
             Some(name) => name.as_ref(),
-            None => file.source.file_name().ok_or_else(|| {
+            None => source.as_ref().file_name().ok_or_else(|| {
                 anyhow!(
                     "name not set for file and no file name in {}",
-                    file.source.display()
+                    source.as_ref().display()
                 )
             })?,
         };
-        match file.target {
+        match target {
             Target::Binary => self.bin_dir().join(name),
             Target::Manpage { section } => self.man_dir(section).join(name),
             Target::Completion { shell: Shell::Fish } => dirs::config_dir()
@@ -336,6 +336,66 @@ impl Home {
                 .join("completions")
                 .join(name),
         }
+    }
+
+    /// Get all files a given manifest would install.
+    #[throws]
+    pub fn installed_files(&self, manifest: &Manifest) -> Vec<PathBuf> {
+        let mut installed_files = Vec::with_capacity(&manifest.install.len() * 3);
+        for install in &manifest.install {
+            match &install.install {
+                Install::SingleFile { name, target } => installed_files.push(self.target(
+                    install.filename()?,
+                    name.as_deref(),
+                    *target,
+                )?),
+                Install::FilesFromArchive { files } => {
+                    for file in files {
+                        installed_files.push(self.target(
+                            &file.source,
+                            file.name.as_deref(),
+                            file.target,
+                        )?)
+                    }
+                }
+            }
+        }
+        installed_files
+    }
+
+    /// Install the single given file.
+    #[throws]
+    fn install_file<P: AsRef<Path>>(
+        &mut self,
+        source: P,
+        name: Option<&str>,
+        target: Target,
+    ) -> () {
+        let mode = if target.is_executable() { 0o755 } else { 0o644 };
+        let target = self.target(&source, name, target)?;
+        println!(
+            "install -m{:o} {} {}",
+            mode,
+            source.as_ref().display(),
+            target.display()
+        );
+        std::fs::create_dir_all(target.parent().expect("Target must be absolute by now"))?;
+        std::fs::copy(&source, &target).with_context(|| {
+            format!(
+                "Failed to copy {} to {}",
+                source.as_ref().display(),
+                target.display()
+            )
+        })?;
+        let mut permissions = std::fs::metadata(&target)?.permissions();
+        permissions.set_mode(mode);
+        std::fs::set_permissions(&target, permissions).with_context(|| {
+            format!(
+                "Failed to set mode {:o} on installed file {}",
+                mode,
+                target.display()
+            )
+        })?;
     }
 
     /// Install a manifest.
@@ -360,41 +420,27 @@ impl Home {
         })?;
 
         for install in &manifest.install {
-            let target = download_directory.join(install.filename()?);
-            if !target.is_file() {
+            let download = download_directory.join(install.filename()?);
+            if !download.is_file() {
                 println!("Downloading {}", install.download.as_str().bold());
-                curl(&install.download, &target)?;
+                curl(&install.download, &download)?;
             }
-            validate(&target, &install.checksums)?;
-            maybe_extract(&target, work_dir.path())?;
-            for file in &install.files {
-                let source = work_dir.path().join(&file.source);
-                let target = self.target(file)?;
-                let mode = if file.is_executable() { 0o755 } else { 0o644 };
-                println!(
-                    "install -m{:o} {} {}",
-                    mode,
-                    file.source.display(),
-                    target.display()
-                );
-                std::fs::create_dir_all(target.parent().expect("Target must be absolute by now"))?;
-                std::fs::copy(&source, &target).with_context(|| {
-                    format!(
-                        "Failed to copy {} to {}",
-                        &file.source.display(),
-                        target.display()
-                    )
-                })?;
-                let mut permissions = std::fs::metadata(&target)?.permissions();
-                permissions.set_mode(mode);
-                std::fs::set_permissions(&target, permissions).with_context(|| {
-                    format!(
-                        "Failed to set mode {:o} on installed file {}",
-                        mode,
-                        target.display()
-                    )
-                })?;
-            }
+            validate(&download, &install.checksums)?;
+            match &install.install {
+                Install::FilesFromArchive { files } => {
+                    maybe_extract(&download, work_dir.path())?;
+                    for file in files {
+                        self.install_file(
+                            work_dir.path().join(&file.source),
+                            file.name.as_deref(),
+                            file.target,
+                        )?;
+                    }
+                }
+                Install::SingleFile { name, target } => {
+                    self.install_file(&download, name.as_deref(), *target)?;
+                }
+            };
         }
     }
 }

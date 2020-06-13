@@ -81,12 +81,9 @@ mod subcommands {
 
     #[throws]
     fn list_files(home: &Home, manifest: &Manifest, existing: bool) -> () {
-        for install in &manifest.install {
-            for file in &install.files {
-                let target = home.target(&file)?;
-                if !existing || target.exists() {
-                    println!("{}", target.display());
-                }
+        for file in home.installed_files(manifest)? {
+            if !existing || file.exists() {
+                println!("{}", file.display());
             }
         }
     }

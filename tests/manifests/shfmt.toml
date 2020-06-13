@@ -1,0 +1,16 @@
+[info]
+name = "shfmt"
+version = "3.1.1"
+url = "https://github.com/mvdan/sh"
+license = "BSD-3-Clause"
+
+[discover]
+binary = "shfmt"
+version_check.args = ["-version"]
+version_check.pattern = "v(\\d\\S+)"
+
+[[install]]
+download = "https://github.com/mvdan/sh/releases/download/v3.1.1/shfmt_v3.1.1_linux_amd64"
+checksums.b2 = "15b203be254ca46b25d35654ceaae91b7e9200f49cd81e103eae7dd80d9e73ab4455c33e6f20073ba2b45f93b06e94e46556c1ab619812718185e071576cf48c"
+name = "shfmt"
+type = "bin"
