@@ -119,13 +119,41 @@ fn untar(archive: &Path, target_directory: &Path) -> () {
     }
 }
 
+#[throws]
+fn unzip(archive: &Path, target_directory: &Path) -> () {
+    println!("unzip {}", archive.display());
+    let status = Command::new("unzip")
+        .arg(archive)
+        .arg("-d")
+        .arg(target_directory)
+        .spawn()
+        .and_then(|mut c| c.wait())
+        .with_context(|| {
+            format!(
+                "Failed to spawn unzip {} -d {}",
+                archive.display(),
+                target_directory.display()
+            )
+        })?;
+
+    if !status.success() {
+        throw!(anyhow!(
+            "unzip {} -d {} failed with exit code {}",
+            archive.display(),
+            target_directory.display(),
+            status,
+        ))
+    }
+}
+
 // There's no point in making a type alias for this one single type.
 #[allow(clippy::type_complexity)]
-static ARCHIVE_PATTERNS: [(&str, fn(&Path, &Path) -> Result<()>); 4] = [
+static ARCHIVE_PATTERNS: [(&str, fn(&Path, &Path) -> Result<()>); 5] = [
     (".tar.gz", untar),
     (".tgz", untar),
     (".tar.bz2", untar),
     (".tar.xz", untar),
+    ("zip", unzip),
 ];
 
 #[throws]
