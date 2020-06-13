@@ -92,43 +92,48 @@ fn validate(target: &Path, checksums: &Checksums) -> () {
 }
 
 #[throws]
-fn maybe_extract(directory: &Path, file: &Path) -> () {
-    let filename = file.file_name().unwrap_or_default().to_string_lossy();
-    if filename.ends_with(".tar.gz")
-        || filename.ends_with(".tgz")
-        || filename.ends_with(".tar.bz2")
-        || filename.ends_with(".tar.xz")
-    {
-        println!("tar xf {}", file.display());
-        let status = Command::new("tar")
-            .arg("xf")
-            .arg(file)
-            .arg("-C")
-            .arg(directory)
-            .spawn()
-            .with_context(|| {
-                format!(
-                    "Failed to spawn tar xf {} -C {}",
-                    file.display(),
-                    directory.display()
-                )
-            })?
-            .wait()
-            .with_context(|| {
-                format!(
-                    "Failed to wait for spawn tar xf {} -C {}",
-                    file.display(),
-                    directory.display()
-                )
-            })?;
+fn untar(archive: &Path, target_directory: &Path) -> () {
+    println!("tar xf {}", archive.display());
+    let status = Command::new("tar")
+        .arg("xf")
+        .arg(archive)
+        .arg("-C")
+        .arg(target_directory)
+        .spawn()
+        .and_then(|mut c| c.wait())
+        .with_context(|| {
+            format!(
+                "Failed to spawn tar xf {} -C {}",
+                archive.display(),
+                target_directory.display()
+            )
+        })?;
 
-        if !status.success() {
-            throw!(anyhow!(
-                "tar xf {} -C {} failed with exit code {}",
-                file.display(),
-                directory.display(),
-                status,
-            ))
+    if !status.success() {
+        throw!(anyhow!(
+            "tar xf {} -C {} failed with exit code {}",
+            archive.display(),
+            target_directory.display(),
+            status,
+        ))
+    }
+}
+
+// There's no point in making a type alias for this one single type.
+#[allow(clippy::type_complexity)]
+static ARCHIVE_PATTERNS: [(&str, fn(&Path, &Path) -> Result<()>); 4] = [
+    (".tar.gz", untar),
+    (".tgz", untar),
+    (".tar.bz2", untar),
+    (".tar.xz", untar),
+];
+
+#[throws]
+fn maybe_extract(file: &Path, directory: &Path) -> () {
+    for (extension, extract) in &ARCHIVE_PATTERNS {
+        if file.as_os_str().to_string_lossy().ends_with(extension) {
+            extract(file, directory)?;
+            return ();
         }
     }
 }
@@ -333,7 +338,7 @@ impl Home {
                 curl(&install.download, &target)?;
             }
             validate(&target, &install.checksums)?;
-            maybe_extract(work_dir.path(), &target)?;
+            maybe_extract(&target, work_dir.path())?;
             for file in &install.files {
                 let source = work_dir.path().join(&file.source);
                 let target = self.target(file)?;
