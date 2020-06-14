@@ -11,18 +11,31 @@ version = "0.1.0"
 publish = false
 
 [dependencies]
+# Coloured ANSI output
+colored = "^1.9"
+# CLI interface
+clap = "^2.33"
+
+# Manifest format, types and deserialization
 toml = "^0.5"
 serde = { version = "^1.0", features=["derive"] }
-clap = "^2.33"
+# Download URLs
+url = "^2.1"
+# Version numbers (not just semver, because we deal with all sorts of versions)
+versions = "^1"
+# Extract version numbers for command output
+regex = "^1.3"
+# License expressions
+spdx = "^0.3"
+
+# Error handling tools
 anyhow = "^1.0"
 fehler = "^1.0"
-dirs = "^2.0"
-regex = "^1.3"
-versions = "^1"
+
+# Temp dirs for building
 tempfile = "^3.1"
-url = "^2.1"
-colored = "^1.9"
-spdx = "^0.3"
+# $HOME and XDG directories
+dirs = "^2.0"
 
 [dev-dependencies]
 pretty_assertions = "^0.6"
