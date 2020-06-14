@@ -46,32 +46,38 @@ mod subcommands {
                     manifest.info.url.blue(),
                     format!("{}", manifest.info.license).italic()
                 ),
-                List::Installed(mode) => match (home.installed_manifest_version(&manifest), mode) {
-                    (Ok(Some(version)), Installed::All) => {
-                        println!("{} = {}", manifest.info.name.bold(), version)
-                    }
-                    (Ok(Some(version)), Installed::Outdated) if version < manifest.info.version => {
+                List::Installed(Installed::All) => match home.installed_manifest_version(&manifest)
+                {
+                    Ok(Some(version)) => println!("{} = {}", manifest.info.name.bold(), version),
+                    Ok(None) => {}
+                    Err(error) => {
+                        failed = true;
                         println!(
+                            "{} = {}",
+                            manifest.info.name.bold(),
+                            format!("failed: {:#}", error).red()
+                        )
+                    }
+                },
+                List::Installed(Installed::Outdated) => {
+                    match home.outdated_manifest_version(&manifest) {
+                        Ok(Some(version)) => println!(
                             "{} = {} -> {}",
                             manifest.info.name.bold(),
                             format!("{}", version).red(),
                             format!("{}", manifest.info.version).bold().green()
-                        )
-                    }
-                    (Err(error), _) => {
-                        eprintln!(
-                            "{}",
-                            format!(
-                                "Failed to check version of {}: {:#}",
-                                manifest.info.name, error
+                        ),
+                        Ok(None) => {}
+                        Err(error) => {
+                            failed = true;
+                            println!(
+                                "{} = {}",
+                                manifest.info.name.bold(),
+                                format!("failed: {:#}", error).red()
                             )
-                            .red()
-                            .bold()
-                        );
-                        failed = true;
+                        }
                     }
-                    _ => {}
-                },
+                }
             }
         }
         if failed {

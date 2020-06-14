@@ -174,6 +174,15 @@ impl Home {
         }
     }
 
+    /// Whether the given manifest is outdated and needs updating.
+    ///
+    /// Return the installed version if it's outdated, otherwise return None.
+    #[throws]
+    pub fn outdated_manifest_version(&self, manifest: &Manifest) -> Option<Versioning> {
+        self.installed_manifest_version(manifest)?
+            .filter(|installed| installed < &manifest.info.version)
+    }
+
     /// Get the file system target for the given file to install.
     ///
     /// Return the path which we must copy the given file to.  Fails if the file has no explicit
