@@ -151,7 +151,7 @@ pub enum Target {
 
 impl Target {
     /// Whether this file needs to be installed as executable.
-    pub fn is_executable(&self) -> bool {
+    pub fn is_executable(self) -> bool {
         match self {
             Target::Binary => true,
             _ => false,
