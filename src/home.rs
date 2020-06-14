@@ -322,4 +322,26 @@ impl Home {
             };
         }
     }
+
+    /// Remove all files installed by the given manifest.
+    #[throws]
+    pub fn remove_manifest(&mut self, manifest: &Manifest) -> () {
+        for file in self.installed_files(manifest)? {
+            if file.exists() {
+                std::fs::remove_file(&file).with_context(|| {
+                    format!(
+                        "Failed to remove {} while removing {}",
+                        file.display(),
+                        &manifest.info.name,
+                    )
+                })?;
+            }
+        }
+    }
+
+    /// Update the given manifest, by removing and then installing it again.
+    pub fn update_manifest(&mut self, manifest: &Manifest) -> Result<()> {
+        self.remove_manifest(manifest)
+            .and_then(|_| self.update_manifest(manifest))
+    }
 }

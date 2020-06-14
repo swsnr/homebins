@@ -101,6 +101,16 @@ mod subcommands {
         println!("{}", format!("{} installed", name).green());
     }
 
+    #[throws]
+    fn update_manifest(home: &mut Home, name: &str, manifest: &Manifest) -> () {
+        if home.outdated_manifest_version(manifest)?.is_some() {
+            println!("Updating {}", name.bold());
+            home.remove_manifest(manifest)?;
+            home.install_manifest(manifest)?;
+            println!("{}", format!("{} updated", name).green());
+        }
+    }
+
     pub fn list(home: &mut Home, mode: List) -> Result<()> {
         let store = home.manifest_store()?;
         // FIXME: Don't unwrap here!  (Still we can safely assume that a store only has valid manifests to some degree)
@@ -129,6 +139,26 @@ mod subcommands {
         }
     }
 
+    #[throws]
+    pub fn update(home: &mut Home, names: Option<Vec<String>>) -> () {
+        match names {
+            None => {
+                for manifest in home.manifest_store()?.manifests()? {
+                    let manifest = manifest?;
+                    update_manifest(home, &manifest.info.name, &manifest)?;
+                }
+            }
+            Some(names) => {
+                let store = home.manifest_store()?;
+                for name in names {
+                    if let Some(manifest) = store.load_manifest(&name)? {
+                        update_manifest(home, &manifest.info.name, &manifest)?;
+                    }
+                }
+            }
+        }
+    }
+
     fn read_manifests<I: Iterator<Item = R>, R: AsRef<Path>>(
         filenames: I,
     ) -> Result<Vec<Manifest>> {
@@ -153,6 +183,14 @@ mod subcommands {
             install_manifest(home, &filename.display().to_string(), &manifest)?;
         }
     }
+
+    #[throws]
+    pub fn manifest_update(home: &mut Home, filenames: Vec<PathBuf>) -> () {
+        for filename in filenames {
+            let manifest = Manifest::read_from_path(&filename)?;
+            update_manifest(home, &filename.display().to_string(), &manifest)?;
+        }
+    }
 }
 
 #[allow(clippy::cognitive_complexity)]
@@ -175,6 +213,14 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
             &mut home,
             values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()),
         ),
+        ("update", Some(m)) => {
+            let names = if m.is_present("name") {
+                Some(values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()))
+            } else {
+                None
+            };
+            subcommands::update(&mut home, names)
+        }
         ("manifest-list", Some(m)) => subcommands::manifest_list(
             &home,
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
@@ -196,6 +242,10 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
             m.is_present("existing"),
         ),
         ("manifest-install", Some(m)) => subcommands::manifest_install(
+            &mut home,
+            values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
+        ),
+        ("manifest-update", Some(m)) => subcommands::manifest_update(
             &mut home,
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
         ),
@@ -234,6 +284,15 @@ fn main() {
                         .required(true)
                         .multiple(true)
                         .help("Binaries to install"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("update")
+                .about("Update binaries")
+                .arg(
+                    Arg::with_name("name")
+                        .multiple(true)
+                        .help("Binaries to update (default to all outdated binaries)"),
                 ),
         )
         .subcommand(
@@ -285,6 +344,16 @@ fn main() {
         .subcommand(
             SubCommand::with_name("manifest-install")
                 .about("Install given manifest files")
+                .arg(
+                    Arg::with_name("manifest-file")
+                        .required(true)
+                        .multiple(true)
+                        .help("Manifest files"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("manifest-update")
+                .about("Update given manifest files")
                 .arg(
                     Arg::with_name("manifest-file")
                         .required(true)
