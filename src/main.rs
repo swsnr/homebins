@@ -102,6 +102,17 @@ mod subcommands {
     }
 
     #[throws]
+    fn remove_manifest(home: &mut Home, name: &str, manifest: &Manifest) -> () {
+        if home.installed_manifest_version(manifest)?.is_some() {
+            println!("Removing {}", name.bold());
+            for file in home.remove_manifest(manifest)? {
+                println!("rm {}", file.display())
+            }
+            println!("{}", format!("{} removed", name).yellow())
+        }
+    }
+
+    #[throws]
     fn update_manifest(home: &mut Home, name: &str, manifest: &Manifest) -> () {
         if home.outdated_manifest_version(manifest)?.is_some() {
             println!("Updating {}", name.bold());
@@ -136,6 +147,17 @@ mod subcommands {
                 .load_manifest(&name)?
                 .ok_or_else(|| anyhow!("Binary {} not found", name))?;
             install_manifest(home, &name, &manifest)?;
+        }
+    }
+
+    #[throws]
+    pub fn remove(home: &mut Home, names: Vec<String>) -> () {
+        let store = home.manifest_store()?;
+        for name in names {
+            let manifest = store
+                .load_manifest(&name)?
+                .ok_or_else(|| anyhow!("Binary {} not found", name))?;
+            remove_manifest(home, &name, &manifest)?;
         }
     }
 
@@ -185,6 +207,14 @@ mod subcommands {
     }
 
     #[throws]
+    pub fn manifest_remove(home: &mut Home, filenames: Vec<PathBuf>) -> () {
+        for filename in filenames {
+            let manifest = Manifest::read_from_path(&filename)?;
+            remove_manifest(home, &filename.display().to_string(), &manifest)?;
+        }
+    }
+
+    #[throws]
     pub fn manifest_update(home: &mut Home, filenames: Vec<PathBuf>) -> () {
         for filename in filenames {
             let manifest = Manifest::read_from_path(&filename)?;
@@ -210,6 +240,10 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
             m.is_present("existing"),
         ),
         ("install", Some(m)) => subcommands::install(
+            &mut home,
+            values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()),
+        ),
+        ("remove", Some(m)) => subcommands::remove(
             &mut home,
             values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()),
         ),
@@ -242,6 +276,10 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
             m.is_present("existing"),
         ),
         ("manifest-install", Some(m)) => subcommands::manifest_install(
+            &mut home,
+            values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
+        ),
+        ("manifest-remove", Some(m)) => subcommands::manifest_remove(
             &mut home,
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
         ),
@@ -284,6 +322,16 @@ fn main() {
                         .required(true)
                         .multiple(true)
                         .help("Binaries to install"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("remove")
+                .about("Remove binaries")
+                .arg(
+                    Arg::with_name("name")
+                        .required(true)
+                        .multiple(true)
+                        .help("Binaries to remove"),
                 ),
         )
         .subcommand(
@@ -344,6 +392,16 @@ fn main() {
         .subcommand(
             SubCommand::with_name("manifest-install")
                 .about("Install given manifest files")
+                .arg(
+                    Arg::with_name("manifest-file")
+                        .required(true)
+                        .multiple(true)
+                        .help("Manifest files"),
+                ),
+        )
+        .subcommand(
+            SubCommand::with_name("manifest-remove")
+                .about("Remove given manifest files")
                 .arg(
                     Arg::with_name("manifest-file")
                         .required(true)

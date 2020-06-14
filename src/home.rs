@@ -324,9 +324,13 @@ impl Home {
     }
 
     /// Remove all files installed by the given manifest.
+    ///
+    /// Returns all removed files.
     #[throws]
-    pub fn remove_manifest(&mut self, manifest: &Manifest) -> () {
-        for file in self.installed_files(manifest)? {
+    pub fn remove_manifest(&mut self, manifest: &Manifest) -> Vec<PathBuf> {
+        let installed_files = self.installed_files(manifest)?;
+        let mut removed_files = Vec::with_capacity(installed_files.len());
+        for file in installed_files {
             if file.exists() {
                 std::fs::remove_file(&file).with_context(|| {
                     format!(
@@ -335,8 +339,10 @@ impl Home {
                         &manifest.info.name,
                     )
                 })?;
+                removed_files.push(file);
             }
         }
+        removed_files
     }
 
     /// Update the given manifest, by removing and then installing it again.
