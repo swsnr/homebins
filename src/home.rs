@@ -5,20 +5,20 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use std::ffi::OsStr;
-use std::io::Write;
-use std::os::unix::ffi::OsStrExt;
 use std::os::unix::fs::PermissionsExt;
 use std::path::{Path, PathBuf};
-use std::process::{Command, Stdio};
+use std::process::Command;
 
 use colored::*;
-use fehler::{throw, throws};
+use fehler::throws;
 use versions::Versioning;
 
 use anyhow::{anyhow, Context, Error, Result};
 
+use crate::checksum::Validate;
 use crate::tools::*;
-use crate::{Checksums, Install, Manifest, ManifestRepo, ManifestStore, Shell, Target};
+use crate::{Install, Manifest, ManifestRepo, ManifestStore, Shell, Target};
+use std::fs::File;
 
 /// The home directory.
 ///
@@ -26,29 +26,6 @@ use crate::{Checksums, Install, Manifest, ManifestRepo, ManifestStore, Shell, Ta
 pub struct Home {
     home: PathBuf,
     cache_dir: PathBuf,
-}
-
-#[throws]
-fn validate(target: &Path, checksums: &Checksums) -> () {
-    let mut child = Command::new("b2sum")
-        .arg("-c")
-        .stdin(Stdio::piped())
-        .spawn()
-        .with_context(|| format!("Failed to spawn b2sum for {}", target.display()))?;
-
-    let mut stdin = child.stdin.take().expect("Stdin was piped?");
-    write!(stdin, "{} ", checksums.b2)
-        .and_then(|_| stdin.write_all(target.as_os_str().as_bytes()))
-        .with_context(|| format!("Failed to pipe checksum to b2sum for {}", target.display()))?;
-    drop(stdin);
-
-    let status = child
-        .wait()
-        .with_context(|| format!("Failed to wait for b2sum for {}", target.display()))?;
-
-    if !status.success() {
-        throw!(anyhow!("b2sum failed to validate {}", target.display()));
-    }
 }
 
 impl Home {
@@ -310,7 +287,15 @@ impl Home {
                 println!("Downloading {}", install.download.as_str().bold());
                 curl(&install.download, &download)?;
             }
-            validate(&download, &install.checksums)?;
+            install
+                .checksums
+                .validate(&mut File::open(&download).with_context(|| {
+                    format!(
+                        "Failed to open {} for checksum validation",
+                        download.display(),
+                    )
+                })?)
+                .with_context(|| format!("Failed to validate {}", download.display()))?;
             match &install.install {
                 Install::FilesFromArchive { files } => {
                     maybe_extract(&download, work_dir.path())?;

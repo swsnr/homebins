@@ -76,11 +76,48 @@ pub struct Discover {
     pub version_check: VersionCheck,
 }
 
-/// Checksums for a file download.
-#[derive(Debug, PartialEq, Deserialize)]
+fn deserialize_hex<'de, D>(d: D) -> std::result::Result<Option<Vec<u8>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Option::<String>::deserialize(d).and_then(|v| {
+        v.map(|s| hex::decode(s).map_err(serde::de::Error::custom))
+            .transpose()
+    })
+}
+
+/// Checksums for validation of downloads.
+#[derive(Debug, Default, PartialEq, Deserialize)]
 pub struct Checksums {
-    /// A blake2 checksum.
-    pub b2: String,
+    /// A Blake2 checksum.
+    #[serde(deserialize_with = "deserialize_hex", default)]
+    pub b2: Option<Vec<u8>>,
+    /// A SHA512 checksum.
+    #[serde(deserialize_with = "deserialize_hex", default)]
+    pub sha512: Option<Vec<u8>>,
+    /// A SHA256 checksum.
+    #[serde(deserialize_with = "deserialize_hex", default)]
+    pub sha256: Option<Vec<u8>>,
+    /// A SHA1 checksum.
+    #[serde(deserialize_with = "deserialize_hex", default)]
+    pub sha1: Option<Vec<u8>>,
+}
+
+impl Checksums {
+    /// Whether these checksums are empty.
+    pub fn is_empty(&self) -> bool {
+        if let Checksums {
+            b2: None,
+            sha512: None,
+            sha256: None,
+            sha1: None,
+        } = self
+        {
+            true
+        } else {
+            false
+        }
+    }
 }
 
 /// Known shells.
@@ -164,6 +201,20 @@ pub enum Install {
     },
 }
 
+fn deserialize_and_validate_checksums<'de, D>(d: D) -> std::result::Result<Checksums, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Checksums::deserialize(d).and_then(|checksums| {
+        if checksums.is_empty() {
+            Err(serde::de::Error::custom("No checksums given"))
+        } else {
+            Ok(checksums)
+        }
+    })
+    // String::deserialize(d).and_then(|s| Url::parse(&s).map_err(serde::de::Error::custom))
+}
+
 /// An installation definition.
 ///
 /// A URL to download, extract if required, and install to $HOME.
@@ -173,6 +224,7 @@ pub struct InstallDownload {
     #[serde(deserialize_with = "deserialize_url")]
     pub download: Url,
     /// Checksums to verify the download with.
+    #[serde(deserialize_with = "deserialize_and_validate_checksums")]
     pub checksums: Checksums,
     /// Files to install from this download.
     #[serde(flatten)]
@@ -237,7 +289,8 @@ mod tests {
                 InstallDownload {
                     download: Url::parse("https://github.com/BurntSushi/ripgrep/releases/download/12.1.1/ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz").unwrap(),
                     checksums: Checksums {
-                        b2: "1c97a37e109f818bce8e974eb3a29eb8d1ca488e048caff658696211e8cad23728a767a2d6b97fed365d24f9545f1bc49a3e2687ab437eb4189993ad5fe30663".to_string()
+                        b2: Some(hex::decode("1c97a37e109f818bce8e974eb3a29eb8d1ca488e048caff658696211e8cad23728a767a2d6b97fed365d24f9545f1bc49a3e2687ab437eb4189993ad5fe30663").unwrap()),
+                        ..Checksums::default()
                     },
                     install: Install::FilesFromArchive {
                         files: vec![
@@ -284,7 +337,10 @@ mod tests {
                 },
                 install: vec![InstallDownload {
                     download: Url::parse("https://github.com/mvdan/sh/releases/download/v3.1.1/shfmt_v3.1.1_linux_amd64").unwrap(),
-                    checksums: Checksums { b2: "15b203be254ca46b25d35654ceaae91b7e9200f49cd81e103eae7dd80d9e73ab4455c33e6f20073ba2b45f93b06e94e46556c1ab619812718185e071576cf48c".to_string() },
+                    checksums: Checksums {
+                        b2: Some(hex::decode("15b203be254ca46b25d35654ceaae91b7e9200f49cd81e103eae7dd80d9e73ab4455c33e6f20073ba2b45f93b06e94e46556c1ab619812718185e071576cf48c").unwrap()),
+                        ..Checksums::default()
+                    },
                     install: Install::SingleFile {
                         name: Some("shfmt".to_string()),
                         target: Target::Binary

@@ -10,6 +10,7 @@
 
 #![deny(warnings, clippy::all, missing_docs)]
 
+mod checksum;
 mod process;
 mod tools;
 
