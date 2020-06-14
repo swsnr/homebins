@@ -10,6 +10,9 @@
 
 #![deny(warnings, clippy::all, missing_docs)]
 
+mod process;
+mod tools;
+
 mod home;
 mod manifest;
 

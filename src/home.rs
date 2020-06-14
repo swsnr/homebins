@@ -13,11 +13,11 @@ use std::process::{Command, Stdio};
 
 use colored::*;
 use fehler::{throw, throws};
-use url::Url;
 use versions::Versioning;
 
 use anyhow::{anyhow, Context, Error, Result};
 
+use crate::tools::*;
 use crate::{Checksums, Install, Manifest, ManifestRepo, ManifestStore, Shell, Target};
 
 /// The home directory.
@@ -26,46 +26,6 @@ use crate::{Checksums, Install, Manifest, ManifestRepo, ManifestStore, Shell, Ta
 pub struct Home {
     home: PathBuf,
     cache_dir: PathBuf,
-}
-
-#[throws]
-fn curl(url: &Url, target: &Path) -> () {
-    println!("curl -O {} {}", target.display(), url);
-    let mut child = Command::new("curl")
-        .arg("-gqb")
-        .arg("")
-        .arg("-fLC")
-        .arg("-")
-        .arg("--progress-bar")
-        .arg("--retry")
-        .arg("3")
-        .arg("--retry-delay")
-        .arg("3")
-        .arg("--output")
-        .arg(target)
-        .arg(url.as_str())
-        .spawn()
-        .with_context(|| {
-            format!(
-                "Failed start curl to download {} to {}",
-                url,
-                target.display()
-            )
-        })?;
-    let status = child.wait().with_context(|| {
-        format!(
-            "Failed to wait for curl to download {} to {}",
-            url,
-            target.display()
-        )
-    })?;
-    if !status.success() {
-        throw!(anyhow!(
-            "Failed to download {} to {}",
-            url,
-            target.display(),
-        ))
-    }
 }
 
 #[throws]
@@ -88,81 +48,6 @@ fn validate(target: &Path, checksums: &Checksums) -> () {
 
     if !status.success() {
         throw!(anyhow!("b2sum failed to validate {}", target.display()));
-    }
-}
-
-#[throws]
-fn untar(archive: &Path, target_directory: &Path) -> () {
-    println!("tar xf {}", archive.display());
-    let status = Command::new("tar")
-        .arg("xf")
-        .arg(archive)
-        .arg("-C")
-        .arg(target_directory)
-        .spawn()
-        .and_then(|mut c| c.wait())
-        .with_context(|| {
-            format!(
-                "Failed to spawn tar xf {} -C {}",
-                archive.display(),
-                target_directory.display()
-            )
-        })?;
-
-    if !status.success() {
-        throw!(anyhow!(
-            "tar xf {} -C {} failed with exit code {}",
-            archive.display(),
-            target_directory.display(),
-            status,
-        ))
-    }
-}
-
-#[throws]
-fn unzip(archive: &Path, target_directory: &Path) -> () {
-    println!("unzip {}", archive.display());
-    let status = Command::new("unzip")
-        .arg(archive)
-        .arg("-d")
-        .arg(target_directory)
-        .spawn()
-        .and_then(|mut c| c.wait())
-        .with_context(|| {
-            format!(
-                "Failed to spawn unzip {} -d {}",
-                archive.display(),
-                target_directory.display()
-            )
-        })?;
-
-    if !status.success() {
-        throw!(anyhow!(
-            "unzip {} -d {} failed with exit code {}",
-            archive.display(),
-            target_directory.display(),
-            status,
-        ))
-    }
-}
-
-// There's no point in making a type alias for this one single type.
-#[allow(clippy::type_complexity)]
-static ARCHIVE_PATTERNS: [(&str, fn(&Path, &Path) -> Result<()>); 5] = [
-    (".tar.gz", untar),
-    (".tgz", untar),
-    (".tar.bz2", untar),
-    (".tar.xz", untar),
-    ("zip", unzip),
-];
-
-#[throws]
-fn maybe_extract(file: &Path, directory: &Path) -> () {
-    for (extension, extract) in &ARCHIVE_PATTERNS {
-        if file.as_os_str().to_string_lossy().ends_with(extension) {
-            extract(file, directory)?;
-            return ();
-        }
     }
 }
 
