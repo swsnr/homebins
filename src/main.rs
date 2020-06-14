@@ -173,9 +173,10 @@ mod subcommands {
             Some(names) => {
                 let store = home.manifest_store()?;
                 for name in names {
-                    if let Some(manifest) = store.load_manifest(&name)? {
-                        update_manifest(home, &manifest.info.name, &manifest)?;
-                    }
+                    let manifest = store
+                        .load_manifest(&name)?
+                        .ok_or_else(|| anyhow!("Binary {} not found", name))?;
+                    update_manifest(home, &name, &manifest)?;
                 }
             }
         }
