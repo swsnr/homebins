@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Second prerelease.
+
 ### Fixed
 
 - Copy target files atomically, and properly update running executables to support self-update.
