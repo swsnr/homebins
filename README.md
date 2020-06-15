@@ -4,6 +4,8 @@ Binaries for $HOME.
 
 Homebins installs binaries and scripts to your `$HOME` directory, directly from vendor, without sudo and root.
 
+See [Install](#install) and [Usage](#usage) for more information.
+
 ## Rationale
 
 With Go and Rust came a whole new collection of awesome commandline tools such as [ripgrep], [bat], [exa], etc.
@@ -49,7 +51,11 @@ Homebins helps you download and install the latest releases of these awesome too
 5. `./homebins install homebins`
 6. `rm ./homebins`
 
+There's also a [dotbot] plugin at [dotbot-homebins].
+
 [latest release]: https://github.com/lunaryorn/homebins/releases/latest
+[dotbot]: https://github.com/anishathalye/dotbot
+[dotbot-homebins]:  https://github.com/lunaryorn/dotbot-homebins
 
 ## Usage
 
