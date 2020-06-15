@@ -225,29 +225,27 @@ impl Home {
             .filter(|installed| installed < &manifest.info.version)
     }
 
-    /// Get the file system target for the given file to install.
-    ///
-    /// Return the path which we must copy the given file to.  Fails if the file has no explicit
-    /// file name and no file name in its source.
-    #[throws]
-    pub fn target<P: AsRef<Path>>(&self, source: P, name: Option<&str>, target: Target) -> PathBuf {
-        let name: &OsStr = match name {
-            Some(name) => name.as_ref(),
-            None => source.as_ref().file_name().ok_or_else(|| {
+    /// The target directory for a given target.
+    pub fn target_dir(&self, target: Target) -> PathBuf {
+        match target {
+            Target::Binary => self.bin_dir(),
+            Target::Manpage { section } => self.man_section_dir(section),
+            Target::Completion { shell: Shell::Fish } => {
+                dirs::config_dir().unwrap().join("fish").join("completions")
+            }
+        }
+    }
+
+    /// Obtain the name of a target file from the given explicit name or the source.
+    pub fn target_name<'a>(&self, source: &'a Path, name: Option<&'a str>) -> Result<&'a OsStr> {
+        match name {
+            Some(name) => Ok(name.as_ref()),
+            None => source.file_name().ok_or_else(|| {
                 anyhow!(
                     "name not set for file and no file name in {}",
-                    source.as_ref().display()
+                    source.display()
                 )
-            })?,
-        };
-        match target {
-            Target::Binary => self.bin_dir().join(name),
-            Target::Manpage { section } => self.man_section_dir(section).join(name),
-            Target::Completion { shell: Shell::Fish } => dirs::config_dir()
-                .unwrap()
-                .join("fish")
-                .join("completions")
-                .join(name),
+            }),
         }
     }
 
@@ -257,18 +255,16 @@ impl Home {
         let mut installed_files = Vec::with_capacity(&manifest.install.len() * 3);
         for install in &manifest.install {
             match &install.install {
-                Install::SingleFile { name, target } => installed_files.push(self.target(
-                    install.filename()?,
-                    name.as_deref(),
-                    *target,
-                )?),
+                Install::SingleFile { name, target } => installed_files.push(
+                    self.target_dir(*target)
+                        .join(self.target_name(&Path::new(install.filename()?), name.as_deref())?),
+                ),
                 Install::FilesFromArchive { files } => {
                     for file in files {
-                        installed_files.push(self.target(
-                            &file.source,
-                            file.name.as_deref(),
-                            file.target,
-                        )?)
+                        installed_files.push(
+                            self.target_dir(file.target)
+                                .join(self.target_name(&file.source, file.name.as_deref())?),
+                        )
                     }
                 }
             }
@@ -285,21 +281,37 @@ impl Home {
         target: Target,
     ) -> () {
         let mode = if target.is_executable() { 0o755 } else { 0o644 };
-        let target = self.target(&source, name, target)?;
+
+        let target_dir = self.target_dir(target);
+        let target_name = self.target_name(source.as_ref(), name)?;
+        let target = target_dir.join(target_name);
         println!(
             "install -m{:o} {} {}",
             mode,
             source.as_ref().display(),
             target.display()
         );
-        std::fs::create_dir_all(target.parent().expect("Target must be absolute by now"))?;
-        std::fs::copy(&source, &target).with_context(|| {
+        std::fs::create_dir_all(&target_dir)?;
+        // Copy file to temporary file along the target, then rename, replacing the original
+        let mut temp_target = tempfile::Builder::new()
+            .prefix(target_name)
+            .tempfile_in(&target_dir)
+            .with_context(|| {
+                format!(
+                    "Failed to create temporary target file in {}",
+                    target_dir.display()
+                )
+            })?;
+        std::io::copy(&mut File::open(&source)?, &mut temp_target).with_context(|| {
             format!(
                 "Failed to copy {} to {}",
                 source.as_ref().display(),
-                target.display()
+                temp_target.path().display()
             )
         })?;
+        temp_target
+            .persist_noclobber(&target)
+            .with_context(|| format!("Failed to persist at {}", target.display()))?;
         let mut permissions = std::fs::metadata(&target)?.permissions();
         permissions.set_mode(mode);
         std::fs::set_permissions(&target, permissions).with_context(|| {
