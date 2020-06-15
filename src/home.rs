@@ -310,7 +310,7 @@ impl Home {
             )
         })?;
         temp_target
-            .persist_noclobber(&target)
+            .persist(&target)
             .with_context(|| format!("Failed to persist at {}", target.display()))?;
         let mut permissions = std::fs::metadata(&target)?.permissions();
         permissions.set_mode(mode);
