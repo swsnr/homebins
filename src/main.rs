@@ -116,7 +116,7 @@ mod subcommands {
     fn update_manifest(home: &mut Home, name: &str, manifest: &Manifest) -> () {
         if home.outdated_manifest_version(manifest)?.is_some() {
             println!("Updating {}", name.bold());
-            home.remove_manifest(manifest)?;
+            // Install overwrites; we do not need to remove old files.
             home.install_manifest(manifest)?;
             println!("{}", format!("{} updated", name).green());
         }
