@@ -26,5 +26,5 @@ Initial prerelease.
 - Check `$HOME` and `manpath` and warn if these variables to not include `~/.local/`.
 
 [0.0.1]: https://github.com/lunaryorn/homebins/releases/tag/v0.0.1
-[0.0.2]: https://github.com/lunaryorn/homebins/compare/vv0.0.1...v0.0.2
+[0.0.2]: https://github.com/lunaryorn/homebins/compare/v0.0.1...v0.0.2
 [Unreleased]: https://github.com/lunaryorn/homebins/compare/v0.0.2...HEAD

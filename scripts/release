@@ -49,7 +49,7 @@ sed -e "/^## \[Unreleased\]\$/ a\\
 \\
 ## [${next_version}] – ${release_date}" \
     -e "\$a\\
-[$next_version]: https://github.com/lunaryorn/homebins/compare/v${latest_tag}...v${next_version}\\
+[$next_version]: https://github.com/lunaryorn/homebins/compare/${latest_tag}...v${next_version}\\
 [Unreleased]: https://github.com/lunaryorn/homebins/compare/v${next_version}...HEAD" \
     -e '/^\[Unreleased\]:/ D' \
     -i'' CHANGELOG.md
