@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.2] – 2020-06-15
+
 Second prerelease.
 
 ### Fixed
@@ -24,4 +26,5 @@ Initial prerelease.
 - Check `$HOME` and `manpath` and warn if these variables to not include `~/.local/`.
 
 [0.0.1]: https://github.com/lunaryorn/homebins/releases/tag/v0.0.1
-[Unreleased]: https://github.com/lunaryorn/homebins/compare/v0.0.1...HEAD
+[0.0.2]: https://github.com/lunaryorn/homebins/compare/vv0.0.1...v0.0.2
+[Unreleased]: https://github.com/lunaryorn/homebins/compare/v0.0.2...HEAD
