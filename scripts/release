@@ -27,8 +27,8 @@ fi
 
 ci_status="$(curl -sfS -H 'Accept: application/vnd.github.antiope-preview+json' \
     "https://api.github.com/repos/lunaryorn/homebins/commits/$(git rev-parse HEAD)/check-suites" |
-    jq -r '.check_suites | map(.status) | join("\n")')"
-if [[ "${ci_status}" != "completed" ]]; then
+    jq '.check_suites | map(select(.app.slug == "github-actions").conclusion) | join(",")'
+if [[ "${ci_status}" != "success" ]]; then
     echo "CI for HEAD pending or failed (${ci_status}); aborting"
     exit 1
 fi
