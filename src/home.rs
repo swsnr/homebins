@@ -28,6 +28,10 @@ pub struct Home {
     cache_dir: PathBuf,
 }
 
+fn path_contains<S: AsRef<OsStr>, P: AsRef<Path>>(path: &S, wanted: P) -> bool {
+    std::env::split_paths(path).any(|path| path.as_path() == wanted.as_ref())
+}
+
 impl Home {
     /// Open the real $HOME directory.
     ///
@@ -37,6 +41,41 @@ impl Home {
         let home = dirs::home_dir().unwrap();
         let cache_dir = dirs::cache_dir().map(|d| d.join("homebins")).unwrap();
         Home { home, cache_dir }
+    }
+
+    /// Check whether the environment is ok, and print warnings to stderr if not.
+    #[throws]
+    pub fn check_environment(&self) -> () {
+        match std::env::var_os("PATH") {
+            None => eprintln!("{}", "WARNING: $PATH not set!".yellow().bold()),
+            Some(path) => {
+                if !path_contains(&path, self.bin_dir()) {
+                    eprintln!(
+                        "{}\nAdd {} to $PATH in your shell profile.",
+                        format!(
+                            "WARNING: $PATH does not contain bin dir at {}",
+                            self.bin_dir().display()
+                        )
+                        .yellow()
+                        .bold(),
+                        self.bin_dir().display()
+                    )
+                }
+            }
+        };
+
+        if !path_contains(&manpath()?, self.man_dir()) {
+            eprintln!(
+                "{}\nAdd {} to $MANPATH in your shell profile; see man 1 manpath for more information",
+                format!(
+                    "WARNING: manpath does not contain man dir at {}",
+                    self.man_dir().display()
+                )
+                .yellow()
+                .bold(),
+                self.man_dir().display()
+            );
+        }
     }
 
     /// The directory to download files from manifests to.
@@ -70,15 +109,18 @@ impl Home {
         self.home.join(".local").join("bin")
     }
 
+    /// Get the man directory.
+    ///
+    /// This is `$HOME/.local/share/man`.
+    pub fn man_dir(&self) -> PathBuf {
+        self.home.join(".local").join("share").join("man")
+    }
+
     /// The directory to install man pages of the given section to.
     ///
-    /// This is the corresponding sub-directory of `$HOME/.local/share/man`.
-    pub fn man_dir(&self, section: u8) -> PathBuf {
-        self.home
-            .join(".local")
-            .join("share")
-            .join("man")
-            .join(format!("man{}", section))
+    /// This is the corresponding sub-directory of the man_dir.
+    pub fn man_section_dir(&self, section: u8) -> PathBuf {
+        self.man_dir().join(format!("man{}", section))
     }
 
     /// Clone a manifest repository from the given remote under the given name.
@@ -200,7 +242,7 @@ impl Home {
         };
         match target {
             Target::Binary => self.bin_dir().join(name),
-            Target::Manpage { section } => self.man_dir(section).join(name),
+            Target::Manpage { section } => self.man_section_dir(section).join(name),
             Target::Completion { shell: Shell::Fish } => dirs::config_dir()
                 .unwrap()
                 .join("fish")

@@ -6,13 +6,22 @@
 
 //! External tools.
 
+use std::ffi::OsString;
 use std::io::Result;
+use std::os::unix::ffi::OsStringExt;
 use std::path::Path;
 use std::process::Command;
 
 use url::Url;
 
 use crate::process::CommandExt;
+
+/// Get the manpath.
+pub fn manpath() -> Result<OsString> {
+    Ok(OsString::from_vec(
+        Command::new("manpath").checked_output()?.stdout,
+    ))
+}
 
 /// Download a URL with curl.
 pub fn curl(url: &Url, target: &Path) -> Result<()> {

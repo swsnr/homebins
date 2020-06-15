@@ -229,6 +229,7 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
     use subcommands::{Installed, List};
 
     let mut home = Home::open();
+    home.check_environment()?;
 
     match matches.subcommand() {
         ("list", _) => subcommands::list(&mut home, List::All),
