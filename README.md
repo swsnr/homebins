@@ -42,9 +42,14 @@ Homebins helps you download and install the latest releases of these awesome too
 
 ## Install
 
-TODO
+1. Make sure that `git`, `curl`, `tar` and `unzip` are installed.
+2. Add `~/.local/bin` to your `$PATH` and `~/.local/share/man` to your `manpath` (Ubuntu systems seem to do the latter automatically if `$PATH` is set up).
+3. Download the "homebins" artifact from the [latest release].
+4. `chmod a+x ./homebins`
+5. `./homebins install homebins`
+6. `rm ./homebins`
 
-Now add `~/.local/bin` to your `$PATH` and `~/.local/share/man` to your `manpath` (Ubuntu systems seem to do the latter automatically if `$PATH` is set up).
+[latest release]: https://github.com/lunaryorn/homebins/releases/latest
 
 ## Usage
 
