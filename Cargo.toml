@@ -8,6 +8,8 @@ authors = ["Sebastian Wiesner <sebastian@swsnr.de>"]
 license = "MPL-2.0"
 edition = "2018"
 version = "0.0.3"
+keywords = ["binaries", "install", "packages"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 # Coloured ANSI output
