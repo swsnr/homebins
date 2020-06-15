@@ -1,0 +1,62 @@
+#!/bin/bash
+# Copyright 2020 Sebastian Wiesner <sebastian@swsnr.de>
+
+# This Source Code Form is subject to the terms of the Mozilla Public
+# License, v. 2.0. If a copy of the MPL was not distributed with this
+# file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+set -e
+
+next_version="$1"
+if [[ -z "${next_version}" ]]; then
+    echo "Next version missing; aborting"
+    exit 1
+fi
+
+changes="$(git status --porcelain)"
+if [[ -n "${changes}" ]]; then
+    git status
+    echo "Working directory not clean; aborting"
+    exit 1
+fi
+
+if [[ "$(git symbolic-ref --short HEAD)" != "master" ]]; then
+    echo "Not on master branch; aborting"
+    exit 1
+fi
+
+ci_status="$(curl -sfS -H 'Accept: application/vnd.github.antiope-preview+json' \
+    "https://api.github.com/repos/lunaryorn/homebins/commits/$(git rev-parse HEAD)/check-suites" |
+    jq -r '.check_suites | map(.status) | join("\n")')"
+if [[ "${ci_status}" != "completed" ]]; then
+    echo "CI for HEAD pending or failed (${ci_status}); aborting"
+    exit 1
+fi
+
+latest_tag="$(git tag --sort '-v:refname' | grep '^v[0-9]' | head -n1)"
+release_date="$(date +%Y-%m-%d)"
+
+# Substitute version in Cargo.toml, force Cargo.lock update and add it to Git
+sed -i'' "1,/^version =/ s/^version = .*$/version = \"$next_version\"/" Cargo.toml
+cargo metadata --format-version 1 >/dev/null
+git add Cargo.toml Cargo.lock
+
+# Update the changelog:
+# 1. Append a headline for the current version right after [Unreleased] headline
+# 2. Append link references for the new version and the new unreleased version
+# 3. Delete the old link reference for the Unreleased header
+sed -e "/^## \[Unreleased\]\$/ a\\
+\\
+## [${next_version}] – ${release_date}" \
+    -e "\$a\\
+[$next_version]: https://github.com/lunaryorn/homebins/compare/v${latest_tag}...v${next_version}\\
+[Unreleased]: https://github.com/lunaryorn/homebins/compare/v${next_version}...HEAD" \
+    -e '/^\[Unreleased\]:/ D' \
+    -i'' CHANGELOG.md
+git add CHANGELOG.md
+
+git commit -m "Release $next_version"
+cargo publish --no-verify
+# Tag and push after successful publish
+git tag -m "homebins $next_version" "v$next_version"
+git push --follow-tags origin master
