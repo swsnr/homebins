@@ -55,29 +55,3 @@ jobs:
         with:
           command: test
           args: --target x86_64-unknown-linux-musl
-
-  artifact:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-      # Install musl tools for musl target
-      - name: Install musl tools
-        run: sudo apt-get install musl-tools
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          target: x86_64-unknown-linux-musl
-      - name: Build release binary
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target x86_64-unknown-linux-musl
-      - name: Strip binary
-        run: strip 'target/x86_64-unknown-linux-musl/release/homebins'
-      - name: Upload binary
-        uses: actions/upload-artifact@v2
-        with:
-          name: "homebins"
-          path: target/x86_64-unknown-linux-musl/release/homebins
