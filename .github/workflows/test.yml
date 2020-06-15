@@ -45,7 +45,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
           override: true
           target: x86_64-unknown-linux-musl
-      - name:
+      - name: Build for musl
         uses: actions-rs/cargo@v1
         with:
           command: build
