@@ -398,10 +398,4 @@ impl Home {
         }
         removed_files
     }
-
-    /// Update the given manifest, by removing and then installing it again.
-    pub fn update_manifest(&mut self, manifest: &Manifest) -> Result<()> {
-        self.remove_manifest(manifest)
-            .and_then(|_| self.update_manifest(manifest))
-    }
 }
