@@ -20,7 +20,7 @@ if [[ -n "${changes}" ]]; then
     exit 1
 fi
 
-if [[ "$(git symbolic-ref --short HEAD)" != "master" ]]; then
+if [[ "$(git symbolic-ref --short HEAD)" != "main" ]]; then
     echo "Not on master branch; aborting"
     exit 1
 fi
