@@ -72,11 +72,11 @@ fn clone_repo(remote: &str, target_directory: &Path) -> () {
         .checked_call()?;
 
     git(target_directory)
-        .args(&["fetch", "--quiet", "homebins", "master"])
+        .args(&["fetch", "--quiet", "homebins", "main"])
         .checked_call()?;
 
     git(target_directory)
-        .args(&["reset", "--quiet", "--hard", "homebins/master"])
+        .args(&["reset", "--quiet", "--hard", "homebins/main"])
         .checked_call()?;
 }
 
