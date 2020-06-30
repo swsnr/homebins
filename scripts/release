@@ -57,4 +57,4 @@ git commit -m "Release $next_version"
 cargo publish --no-verify
 # Tag and push after successful publish
 git tag -m "homebins $next_version" "v$next_version"
-git push --follow-tags origin master
+git push --follow-tags origin main
