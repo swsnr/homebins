@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.0.4] – 2020-06-30
+
 ### Changed
 
 - Manifest repositories now use the `main` branch instead of `master`.
@@ -40,4 +42,5 @@ Initial prerelease.
 [0.0.1]: https://github.com/lunaryorn/homebins/releases/tag/v0.0.1
 [0.0.2]: https://github.com/lunaryorn/homebins/compare/v0.0.1...v0.0.2
 [0.0.3]: https://github.com/lunaryorn/homebins/compare/v0.0.2...v0.0.3
-[Unreleased]: https://github.com/lunaryorn/homebins/compare/v0.0.3...HEAD
+[0.0.4]: https://github.com/lunaryorn/homebins/compare/v0.0.3...v0.0.4
+[Unreleased]: https://github.com/lunaryorn/homebins/compare/v0.0.4...HEAD
