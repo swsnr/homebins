@@ -6,6 +6,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Do not fail if version check pattern doesn't match; instead assume that the binary is not installed.
+    This supports multiple variants of the same binary, e.g. Hugo and Hugo Extended (see [GH-10]).
+
+[GH-10]: https://github.com/lunaryorn/homebins/issues/10
+
 ## [0.0.4] – 2020-06-30
 
 ### Changed

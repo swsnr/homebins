@@ -152,8 +152,8 @@ impl Home {
     /// Attempt to invoke the version check denoted in the manifest, i.e. the given binary with the
     /// version check arguments, and use the pattern to extract a version number.
     ///
-    /// Return `None` if the binary doesn't exist; fail if we cannot invoke it for other reasons or
-    /// if we fail to parse the version from other.
+    /// Return `None` if the binary doesn't exist or its output doesn't match the pattern;
+    /// fail if we cannot invoke it for other reasons or if we fail to parse the version from other.
     #[throws]
     pub fn installed_manifest_version(&self, manifest: &Manifest) -> Option<Versioning> {
         let args = &manifest.discover.version_check.args;
@@ -182,35 +182,21 @@ impl Home {
             })?;
             let version = pattern
                 .captures(output)
-                .ok_or_else(|| {
-                    anyhow!(
-                        "Output of command {} with {:?} did not contain match for {}: {}",
-                        binary.display(),
-                        args,
-                        manifest.discover.version_check.pattern,
-                        output
-                    )
-                })?
-                .get(1)
-                .ok_or_else(|| {
-                    anyhow!(
-                        "Output of command {} with {:?} did not contain capture group 1 for {}: {}",
-                        binary.display(),
-                        args,
-                        manifest.discover.version_check.pattern,
-                        output
-                    )
-                })?
-                .as_str();
+                .and_then(|c| c.get(1))
+                .map(|m| m.as_str());
 
-            Some(Versioning::new(version).ok_or_else(|| {
-                anyhow!(
-                    "Output of command {} with {:?} returned invalid version {:?}",
-                    binary.display(),
-                    args,
-                    version
-                )
-            })?)
+            version
+                .map(|s| {
+                    Versioning::new(s).ok_or_else(|| {
+                        anyhow!(
+                            "Output of command {} with {:?} returned invalid version {:?}",
+                            binary.display(),
+                            args,
+                            version
+                        )
+                    })
+                })
+                .transpose()?
         } else {
             None
         }
