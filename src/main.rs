@@ -35,7 +35,7 @@ mod subcommands {
     }
 
     #[throws]
-    fn list_manifests<I: Iterator<Item = Manifest>>(home: &Home, manifests: I, mode: List) {
+    fn list_manifests<'a, I: Iterator<Item = &'a Manifest>>(home: &Home, manifests: I, mode: List) {
         let mut failed = false;
         for manifest in manifests {
             match mode {
@@ -125,7 +125,9 @@ mod subcommands {
     pub fn list(home: &mut Home, mode: List) -> Result<()> {
         let store = home.manifest_store()?;
         // FIXME: Don't unwrap here!  (Still we can safely assume that a store only has valid manifests to some degree)
-        list_manifests(&home, store.manifests()?.map(|m| m.unwrap()), mode)
+        let mut manifests: Vec<Manifest> = store.manifests()?.map(|m| m.unwrap()).collect();
+        manifests.sort_by_cached_key(|m| m.info.name.to_string());
+        list_manifests(&home, manifests.iter(), mode)
     }
 
     #[throws]
@@ -189,7 +191,7 @@ mod subcommands {
     }
 
     pub fn manifest_list(home: &Home, filenames: Vec<PathBuf>, mode: List) -> Result<()> {
-        list_manifests(home, read_manifests(filenames.iter())?.into_iter(), mode)
+        list_manifests(home, read_manifests(filenames.iter())?.iter(), mode)
     }
 
     #[throws]
