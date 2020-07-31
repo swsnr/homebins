@@ -62,15 +62,18 @@ jobs:
       - name: Download artifacts
         uses: actions/download-artifact@v2
         with:
-          path: ./binaries
-      - name: Compute checksums
-        shell: bash
+          path: ./artifacts
+      - name: Aggregate assets
         run: |
-          for directory in *; do (
-            cd "$directory"; shopt -s nullglob; b2sum *.tar.gz >> ../B2SUMS.txt; sha512sum *.tar.gz >> ../SHA512SUM.txt
-          ); done
-          (cd homebins; b2sum homebins >> ../B2SUMS.txt; sha512sum homebins >> ../SHA512SUM.txt)
-        working-directory: binaries
+          mkdir ./assets
+          mv ./artifacts/*/*.tar.gz ./artifacts/homebins/homebins ./assets
+      - name: Compute checksums
+        # We create checksum files in the parent directory to avoid checksumming the checksums
+        run: |
+          b2sum * > ../B2SUMS.txt
+          sha512sum * > ../SHA512SUM.txt
+          mv ../B2SUMS.txt ../SHA512SUM.txt .
+        working-directory: assets
       - name: Get version
         id: version
         shell: bash
@@ -89,10 +92,6 @@ jobs:
         with:
           name: v${{ steps.version.outputs.version }}
           body_path: ./CHANGELOG-release.md
-          files: |
-            ./binaries/**/*.tar.gz
-            ./binaries/homebins/homebins
-            ./binaries/B2SUMS.txt
-            ./binaries/SHA512SUM.txt
+          files: "./assets/*"
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
