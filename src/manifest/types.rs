@@ -212,7 +212,6 @@ where
             Ok(checksums)
         }
     })
-    // String::deserialize(d).and_then(|s| Url::parse(&s).map_err(serde::de::Error::custom))
 }
 
 /// An installation definition.
