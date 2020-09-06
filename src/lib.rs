@@ -96,7 +96,11 @@ where
         match operation {
             Download(url, name) => {
                 println!("Downloading {}", url.as_str().bold());
-                curl(&url, &dirs.download_dir().join(name.as_ref()))?;
+                let dest = dirs.download_dir().join(name.as_ref());
+                // FIXME: Don't check for file, instead handle 416 errors from curl as indicator for completeness
+                if !dest.exists() {
+                    curl(&url, &dest)?;
+                }
             }
             Validate(checksums, name) => {
                 let file = dirs.download_dir().join(name.as_ref());
