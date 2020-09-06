@@ -6,6 +6,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add support for additional binary hardlinks (see [GH-12]).
+
+[GH-12]: https://github.com/lunaryorn/homebins/issues/12
+
 ## [0.0.5] – 2020-07-31
 
 ### Changed
@@ -31,6 +37,7 @@ Third prerelease.
 - Overwrite existing target files.
 
 ## [0.0.2] – 2020-06-15
+
 
 Second prerelease.
 

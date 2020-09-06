@@ -155,6 +155,18 @@ where
                     )
                 })?;
             }
+            Hardlink(source, target) => {
+                let src = dirs.install_dirs().bin_dir().join(source.as_ref());
+                let dst = dirs.install_dirs().bin_dir().join(target.as_ref());
+                println!("ln -f {} {}", src.display(), dst.display());
+                if dst.exists() {
+                    std::fs::remove_file(&dst)
+                        .with_context(|| format!("Failed to override {}", dst.display()))?;
+                }
+                std::fs::hard_link(&src, &dst).with_context(|| {
+                    format!("Failed to link {} to {}", src.display(), dst.display(),)
+                })?;
+            }
         }
     }
 }

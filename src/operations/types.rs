@@ -87,4 +87,6 @@ pub enum Operation<'a> {
     Extract(Cow<'a, str>),
     /// Copy the given source file to the given destination, with the given permissions on target.
     Copy(Source<'a>, Destination<'a>, Permissions),
+    /// Create a hard link, from the first to the second item.
+    Hardlink(Cow<'a, str>, Cow<'a, str>),
 }

@@ -128,12 +128,16 @@ pub enum Shell {
 }
 
 /// The kind of installation target.
-#[derive(Debug, PartialEq, Eq, Deserialize, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum Target {
     /// A binary to install to `$HOME/.local/bin` as executable.
     #[serde(rename = "binary", alias = "bin")]
-    Binary,
+    Binary {
+        /// Additional hard links to this binary.
+        #[serde(default)]
+        links: Vec<String>,
+    },
     /// A manpage to install at the given secion in `$HOME/.local/share/man` as regular file.
     #[serde(rename = "manpage", alias = "man")]
     Manpage {
@@ -285,7 +289,7 @@ mod tests {
                             InstallFile {
                                 source: "ripgrep-12.1.1-x86_64-unknown-linux-musl/rg".to_string(),
                                 name: None,
-                                target: Target::Binary,
+                                target: Target::Binary { links: vec!["ripgrep".to_string()] },
                             },
                             InstallFile {
                                 source: "ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1".to_string(),
@@ -331,7 +335,7 @@ mod tests {
                     },
                     install: Install::SingleFile {
                         name: Some("shfmt".to_string()),
-                        target: Target::Binary
+                        target: Target::Binary { links: Vec::new() }
                     }
                 }]
             }

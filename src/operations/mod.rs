@@ -24,7 +24,7 @@ fn number_of_operations(download: &InstallDownload) -> usize {
 fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> Operation<'a> {
     use Operation::Copy;
     match target {
-        Target::Binary => Copy(source, Destination::BinDir(name), Permissions::Executable),
+        Target::Binary { .. } => Copy(source, Destination::BinDir(name), Permissions::Executable),
         Target::Manpage { section } => Copy(
             source,
             Destination::ManDir(*section, name),
@@ -35,6 +35,14 @@ fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> Operatio
             Destination::CompletionDir(*shell, name),
             Permissions::Regular,
         ),
+    }
+}
+
+fn add_links<'a>(target: &'a Target, target_name: &'a str, operations: &mut Vec<Operation<'a>>) {
+    if let Target::Binary { links } = target {
+        for link in links {
+            operations.push(Operation::Hardlink(Cow::from(target_name), Cow::from(link)))
+        }
     }
 }
 
@@ -54,25 +62,30 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
         ));
 
         match &download.install {
-            Install::SingleFile { name, target } => operations.push(copy(
-                Source::Download(Borrowed(filename)),
-                target,
-                Cow::Borrowed(name.as_deref().unwrap_or(filename)),
-            )),
+            Install::SingleFile { name, target } => {
+                let target_name = name.as_deref().unwrap_or(filename);
+                operations.push(copy(
+                    Source::Download(Borrowed(filename)),
+                    target,
+                    Cow::Borrowed(target_name),
+                ));
+                add_links(target, target_name, &mut operations);
+            }
             Install::FilesFromArchive { files } => {
                 operations.push(Operation::Extract(Borrowed(filename)));
                 for file in files {
-                    let name: Cow<str> = Borrowed(file.name.as_deref().unwrap_or_else(|| {
+                    let name = file.name.as_deref().unwrap_or_else(|| {
                         file.source
                             .split('/')
                             .last()
                             .expect("rsplit should always be non-empty!")
-                    }));
+                    });
                     operations.push(copy(
                         Source::WorkDir(Borrowed(file.source.as_str())),
                         &file.target,
-                        name,
+                        Cow::from(name),
                     ));
+                    add_links(&file.target, name, &mut operations);
                 }
             }
         }
@@ -110,6 +123,7 @@ mod tests {
                     Destination::BinDir(Cow::Borrowed("rg")),
                     Permissions::Executable
                 ),
+                Operation::Hardlink(Cow::Borrowed("rg"), Cow::Borrowed("ripgrep")),
                 Operation::Copy(
                     Source::WorkDir(Cow::Borrowed(
                         "ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1"
