@@ -79,10 +79,8 @@ impl Permissions {
 /// Operations to apply a manifest to a home directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operation<'a> {
-    /// Download a to the given filename in the manifest download directory.
-    Download(Cow<'a, Url>, Cow<'a, str>),
-    /// Validate checksums of the given file in the manifest download directory.
-    Validate(Cow<'a, Checksums>, Cow<'a, str>),
+    /// Download a to the given filename in the manifest download directory and validate against checksums.
+    Download(Cow<'a, Url>, Cow<'a, str>, Cow<'a, Checksums>),
     /// Extract the given filename from the manifest download directory into the manifest work directory.
     Extract(Cow<'a, str>),
     /// Copy the given source file to the given destination, with the given permissions on target.

@@ -94,22 +94,19 @@ where
 
     for operation in operations {
         match operation {
-            Download(url, name) => {
+            Download(url, name, checksums) => {
                 println!("Downloading {}", url.as_str().bold());
                 let dest = dirs.download_dir().join(name.as_ref());
                 // FIXME: Don't check for file, instead handle 416 errors from curl as indicator for completeness
                 if !dest.exists() {
                     curl(&url, &dest)?;
                 }
-            }
-            Validate(checksums, name) => {
-                let file = dirs.download_dir().join(name.as_ref());
-                let mut source = &mut File::open(&file).with_context(|| {
-                    format!("Failed to open {} for checksum validation", file.display())
+                let mut source = &mut File::open(&dest).with_context(|| {
+                    format!("Failed to open {} for checksum validation", dest.display())
                 })?;
                 checksums
                     .validate(&mut source)
-                    .with_context(|| format!("Failed to validate {}", file.display()))?;
+                    .with_context(|| format!("Failed to validate {}", dest.display()))?;
             }
             Extract(name) => {
                 extract(&dirs.download_dir().join(name.as_ref()), dirs.work_dir())?;

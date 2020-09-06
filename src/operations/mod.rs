@@ -55,10 +55,7 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
         operations.push(Operation::Download(
             Borrowed(&download.download),
             Borrowed(filename),
-        ));
-        operations.push(Operation::Validate(
             Borrowed(&download.checksums),
-            Borrowed(filename),
         ));
 
         match &download.install {
@@ -115,7 +112,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::manifest::Shell;
+    use crate::manifest::{Checksums, Shell};
     use crate::operations::*;
     use crate::Manifest;
     use pretty_assertions::assert_eq;
@@ -130,11 +127,8 @@ mod tests {
             vec![
                 Operation::Download(
                     Cow::Borrowed(&manifest.install[0].download),
-                    Cow::Borrowed("ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz")
-                ),
-                Operation::Validate(
+                    Cow::Borrowed("ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz"),
                     Cow::Borrowed(&manifest.install[0].checksums),
-                    Cow::Borrowed("ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz")
                 ),
                 Operation::Extract(Cow::Borrowed(
                     "ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz"
@@ -171,11 +165,8 @@ mod tests {
             vec![
                 Operation::Download(
                     Cow::Borrowed(&manifest.install[0].download),
-                    Cow::Borrowed("shfmt_v3.1.1_linux_amd64")
-                ),
-                Operation::Validate(
+                    Cow::Borrowed("shfmt_v3.1.1_linux_amd64"),
                     Cow::Borrowed(&manifest.install[0].checksums),
-                    Cow::Borrowed("shfmt_v3.1.1_linux_amd64")
                 ),
                 Operation::Copy(
                     Source::Download(Cow::Borrowed("shfmt_v3.1.1_linux_amd64")),
@@ -192,6 +183,7 @@ mod tests {
             Operation::Download(
                 Cow::Owned(Url::parse("https://example.com/file.tar.gz").unwrap()),
                 "file.tar.gz".into(),
+                Cow::Owned(Checksums::default()),
             ),
             Operation::Copy(
                 Source::WorkDir("foo".into()),
