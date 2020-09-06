@@ -6,8 +6,8 @@
 
 //! External tools.
 
-use std::ffi::OsString;
-use std::io::Result;
+use std::ffi::{OsStr, OsString};
+use std::io::{Error, ErrorKind, Result};
 use std::os::unix::ffi::OsStringExt;
 use std::path::Path;
 use std::process::Command;
@@ -15,6 +15,11 @@ use std::process::Command;
 use url::Url;
 
 use crate::process::CommandExt;
+
+/// Whether a path variable such as `$PATH`. contains the given path.
+pub fn path_contains<S: AsRef<OsStr>, P: AsRef<Path>>(path: &S, wanted: P) -> bool {
+    std::env::split_paths(path).any(|path| path.as_path() == wanted.as_ref())
+}
 
 /// Get the manpath.
 pub fn manpath() -> Result<OsString> {
@@ -75,24 +80,18 @@ static ARCHIVE_PATTERNS: [(&str, ExtractFn); 5] = [
     ("zip", unzip),
 ];
 
-/// The result of attempting to extract an archive.
-#[derive(Debug, PartialEq, Copy, Clone)]
-pub enum ArchiveResult {
-    /// The archive was extracted.
-    Extracted,
-    /// The given file was not an archive.
-    NoArchive,
-}
-
 /// Extract the given file if its an archive.
-pub fn maybe_extract(file: &Path, directory: &Path) -> Result<ArchiveResult> {
+pub fn extract(file: &Path, directory: &Path) -> Result<()> {
     for (extension, extract) in &ARCHIVE_PATTERNS {
         if file.as_os_str().to_string_lossy().ends_with(extension) {
             extract(Archive(file), directory)?;
-            return Ok(ArchiveResult::Extracted);
+            return Ok(());
         }
     }
-    Ok(ArchiveResult::NoArchive)
+    Err(Error::new(
+        ErrorKind::InvalidInput,
+        format!("Cannot extract {}", file.display()),
+    ))
 }
 
 /// Create a git command for the given repo

@@ -44,7 +44,7 @@ thiserror = "^1.0"
 # Temp dirs for building
 tempfile = "^3.1"
 # $HOME and XDG directories
-dirs = "^2.0"
+directories = "^3"
 
 [dev-dependencies]
 pretty_assertions = "^0.6"

@@ -6,11 +6,10 @@
 
 //! Manifest types.
 
-use anyhow::{anyhow, Context, Error, Result};
-use fehler::throws;
+use anyhow::{Context, Result};
 use regex::Regex;
 use serde::{Deserialize, Deserializer};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use url::Url;
 use versions::Versioning;
 
@@ -50,7 +49,7 @@ pub struct Info {
 }
 
 /// How to check the version of a binary.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize)]
 pub struct VersionCheck {
     /// The arguments to pass to the binary to make it output its version.
     pub args: Vec<String>,
@@ -66,7 +65,7 @@ impl VersionCheck {
 }
 
 /// How to check whether a binary exists.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize)]
 pub struct Discover {
     /// The name of the binary to look for.
     ///
@@ -87,7 +86,7 @@ where
 }
 
 /// Checksums for validation of downloads.
-#[derive(Debug, Default, PartialEq, Deserialize)]
+#[derive(Debug, Default, PartialEq, Eq, Deserialize, Clone)]
 pub struct Checksums {
     /// A Blake2 checksum.
     #[serde(deserialize_with = "deserialize_hex", default)]
@@ -121,7 +120,7 @@ impl Checksums {
 }
 
 /// Known shells.
-#[derive(Debug, PartialEq, Deserialize, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Copy, Clone)]
 pub enum Shell {
     /// The Fish shell.
     #[serde(rename = "fish")]
@@ -129,7 +128,7 @@ pub enum Shell {
 }
 
 /// The kind of installation target.
-#[derive(Debug, PartialEq, Deserialize, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Copy, Clone)]
 #[serde(tag = "type")]
 pub enum Target {
     /// A binary to install to `$HOME/.local/bin` as executable.
@@ -149,21 +148,11 @@ pub enum Target {
     },
 }
 
-impl Target {
-    /// Whether this file needs to be installed as executable.
-    pub fn is_executable(self) -> bool {
-        match self {
-            Target::Binary => true,
-            _ => false,
-        }
-    }
-}
-
 /// A file to install to $HOME.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize)]
 pub struct InstallFile {
     /// The path of this file within the containing download.
-    pub source: PathBuf,
+    pub source: String,
     /// An explicit file name to install as.
     ///
     /// If absent use the file name of `source`.
@@ -181,7 +170,7 @@ where
 }
 
 /// What to install from a download.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize)]
 #[serde(untagged)]
 pub enum Install {
     /// Install the downloaded file directly as a single file.
@@ -217,7 +206,7 @@ where
 /// An installation definition.
 ///
 /// A URL to download, extract if required, and install to $HOME.
-#[derive(Debug, PartialEq, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Deserialize)]
 pub struct InstallDownload {
     /// The URL to download from.
     #[serde(deserialize_with = "deserialize_url")]
@@ -232,11 +221,11 @@ pub struct InstallDownload {
 
 impl InstallDownload {
     /// The file name of the URL, that is, the final segment of the path of `download`.
-    #[throws]
     pub fn filename(&self) -> &str {
         self.download
             .path_segments()
-            .ok_or_else(|| anyhow!("Expected path segments in URL {}", self.download))?
+            // TODO: Check this during manifest deserialization
+            .expect("Expected path segments in URL")
             // If there's a path there's also a last segment
             .last()
             .unwrap()
@@ -294,17 +283,17 @@ mod tests {
                     install: Install::FilesFromArchive {
                         files: vec![
                             InstallFile {
-                                source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/rg").to_path_buf(),
+                                source: "ripgrep-12.1.1-x86_64-unknown-linux-musl/rg".to_string(),
                                 name: None,
                                 target: Target::Binary,
                             },
                             InstallFile {
-                                source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1").to_path_buf(),
+                                source: "ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1".to_string(),
                                 name: None,
                                 target: Target::Manpage { section: 1 },
                             },
                             InstallFile {
-                                source: Path::new("ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish").to_path_buf(),
+                                source: "ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish".to_string(),
                                 name: None,
                                 target: Target::Completion { shell: Shell::Fish },
                             }

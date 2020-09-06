@@ -6,7 +6,7 @@
 
 //! Checksum validation.
 
-use crate::Checksums;
+use crate::manifest::Checksums;
 use digest::Digest;
 use std::io::{Read, Write};
 use thiserror::Error;

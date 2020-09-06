@@ -12,9 +12,9 @@ use std::process::{Command, Stdio};
 use anyhow::{Context, Error};
 use fehler::throws;
 
+use crate::manifest::ManifestStore;
 use crate::process::CommandExt;
 use crate::tools::git;
-use crate::ManifestStore;
 
 /// A Git repository of manifests.
 #[derive(Debug)]

@@ -201,12 +201,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "dirs"
-version = "2.0.2"
+name = "directories"
+version = "3.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13aea89a5c93364a98e9b37b2fa237effbb694d5cfe01c5b70941f7eb087d5e3"
+checksum = "f8fed639d60b58d0f53498ab13d26f621fd77569cc6edb031f4cc36a2ad9da0f"
 dependencies = [
- "cfg-if",
  "dirs-sys",
 ]
 
@@ -292,7 +291,7 @@ dependencies = [
  "clap",
  "colored",
  "digest",
- "dirs",
+ "directories",
  "fehler",
  "hex",
  "pretty_assertions",

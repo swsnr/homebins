@@ -8,34 +8,53 @@
 
 #![deny(warnings, clippy::all, missing_docs)]
 
-use clap::*;
 use colored::*;
 
-use anyhow::anyhow;
-use homebins::Home;
-use std::path::PathBuf;
+use anyhow::{anyhow, Context, Error, Result};
+use directories::BaseDirs;
+use fehler::{throw, throws};
+use homebins::{HomebinProjectDirs, HomebinRepos, InstallDirs, Manifest};
+use std::path::{Path, PathBuf};
 
-mod subcommands {
-    use anyhow::{anyhow, Error, Result};
-    use colored::*;
-    use fehler::{throw, throws};
-    use homebins::{Home, Manifest};
-    use std::path::{Path, PathBuf};
+#[derive(Copy, Clone)]
+enum Installed {
+    All,
+    Outdated,
+}
 
-    #[derive(Copy, Clone)]
-    pub enum Installed {
-        All,
-        Outdated,
+#[derive(Copy, Clone)]
+enum List {
+    All,
+    Installed(Installed),
+}
+
+struct Commands {
+    dirs: HomebinProjectDirs,
+    install_dirs: InstallDirs,
+}
+
+fn read_manifests<I: Iterator<Item = R>, R: AsRef<Path>>(filenames: I) -> Result<Vec<Manifest>> {
+    filenames.map(Manifest::read_from_path).collect()
+}
+
+impl Commands {
+    #[throws]
+    fn new() -> Commands {
+        let dirs = HomebinProjectDirs::open()?;
+        let install_dirs = InstallDirs::from_base_dirs(
+            &BaseDirs::new()
+                .with_context(|| "Cannot determine base dirs for current user".to_string())?,
+        )?;
+
+        Commands { dirs, install_dirs }
     }
 
-    #[derive(Copy, Clone)]
-    pub enum List {
-        All,
-        Installed(Installed),
+    fn repos(&self) -> HomebinRepos {
+        HomebinRepos::open(&self.dirs)
     }
 
     #[throws]
-    fn list_manifests<'a, I: Iterator<Item = &'a Manifest>>(home: &Home, manifests: I, mode: List) {
+    fn list_manifests<'a, I: Iterator<Item = &'a Manifest>>(&self, manifests: I, mode: List) {
         let mut failed = false;
         for manifest in manifests {
             match mode {
@@ -46,21 +65,24 @@ mod subcommands {
                     manifest.info.url.blue(),
                     format!("{}", manifest.info.license).italic()
                 ),
-                List::Installed(Installed::All) => match home.installed_manifest_version(&manifest)
-                {
-                    Ok(Some(version)) => println!("{} = {}", manifest.info.name.bold(), version),
-                    Ok(None) => {}
-                    Err(error) => {
-                        failed = true;
-                        println!(
-                            "{} = {}",
-                            manifest.info.name.bold(),
-                            format!("failed: {:#}", error).red()
-                        )
+                List::Installed(Installed::All) => {
+                    match homebins::installed_manifest_version(&self.install_dirs, &manifest) {
+                        Ok(Some(version)) => {
+                            println!("{} = {}", manifest.info.name.bold(), version)
+                        }
+                        Ok(None) => {}
+                        Err(error) => {
+                            failed = true;
+                            println!(
+                                "{} = {}",
+                                manifest.info.name.bold(),
+                                format!("failed: {:#}", error).red()
+                            )
+                        }
                     }
-                },
+                }
                 List::Installed(Installed::Outdated) => {
-                    match home.outdated_manifest_version(&manifest) {
+                    match homebins::outdated_manifest_version(&self.install_dirs, &manifest) {
                         Ok(Some(version)) => println!(
                             "{} = {} -> {}",
                             manifest.info.name.bold(),
@@ -86,8 +108,8 @@ mod subcommands {
     }
 
     #[throws]
-    fn list_files(home: &Home, manifest: &Manifest, existing: bool) -> () {
-        for file in home.installed_files(manifest)? {
+    fn list_files(&self, manifest: &Manifest, existing: bool) -> () {
+        for file in homebins::files(&self.install_dirs, manifest) {
             if !existing || file.exists() {
                 println!("{}", file.display());
             }
@@ -95,17 +117,17 @@ mod subcommands {
     }
 
     #[throws]
-    fn install_manifest(home: &mut Home, name: &str, manifest: &Manifest) -> () {
+    fn install_manifest(&mut self, name: &str, manifest: &Manifest) -> () {
         println!("Installing {}", name.bold());
-        home.install_manifest(manifest)?;
+        homebins::install_manifest(&self.dirs, &mut self.install_dirs, manifest)?;
         println!("{}", format!("{} installed", name).green());
     }
 
     #[throws]
-    fn remove_manifest(home: &mut Home, name: &str, manifest: &Manifest) -> () {
-        if home.installed_manifest_version(manifest)?.is_some() {
+    fn remove_manifest(&mut self, name: &str, manifest: &Manifest) -> () {
+        if homebins::installed_manifest_version(&self.install_dirs, manifest)?.is_some() {
             println!("Removing {}", name.bold());
-            for file in home.remove_manifest(manifest)? {
+            for file in homebins::remove_manifest(&mut self.install_dirs, manifest)? {
                 println!("rm {}", file.display())
             }
             println!("{}", format!("{} removed", name).yellow())
@@ -113,182 +135,165 @@ mod subcommands {
     }
 
     #[throws]
-    fn update_manifest(home: &mut Home, name: &str, manifest: &Manifest) -> () {
-        if home.outdated_manifest_version(manifest)?.is_some() {
+    fn update_manifest(&mut self, name: &str, manifest: &Manifest) -> () {
+        if homebins::outdated_manifest_version(&self.install_dirs, manifest)?.is_some() {
             println!("Updating {}", name.bold());
             // Install overwrites; we do not need to remove old files.
-            home.install_manifest(manifest)?;
+            homebins::install_manifest(&self.dirs, &mut self.install_dirs, manifest)?;
             println!("{}", format!("{} updated", name).green());
         }
     }
 
-    pub fn list(home: &mut Home, mode: List) -> Result<()> {
-        let store = home.manifest_store()?;
+    pub fn list(&mut self, mode: List) -> Result<()> {
+        let store = self.repos().manifest_store()?;
         // FIXME: Don't unwrap here!  (Still we can safely assume that a store only has valid manifests to some degree)
         let mut manifests: Vec<Manifest> = store.manifests()?.map(|m| m.unwrap()).collect();
         manifests.sort_by_cached_key(|m| m.info.name.to_string());
-        list_manifests(&home, manifests.iter(), mode)
+        self.list_manifests(manifests.iter(), mode)
     }
 
     #[throws]
-    pub fn files(home: &mut Home, names: Vec<String>, existing: bool) -> () {
-        let store = home.manifest_store()?;
+    pub fn files(&mut self, names: Vec<String>, existing: bool) -> () {
+        let store = self.repos().manifest_store()?;
         for name in names {
             let manifest = store
                 .load_manifest(&name)?
                 .ok_or_else(|| anyhow!("Binary {} not found", name))?;
-            list_files(home, &manifest, existing)?;
+            self.list_files(&manifest, existing)?;
         }
     }
 
     #[throws]
-    pub fn install(home: &mut Home, names: Vec<String>) -> () {
-        let store = home.manifest_store()?;
+    pub fn install(&mut self, names: Vec<String>) -> () {
+        let store = self.repos().manifest_store()?;
         for name in names {
             let manifest = store
                 .load_manifest(&name)?
                 .ok_or_else(|| anyhow!("Binary {} not found", name))?;
-            install_manifest(home, &name, &manifest)?;
+            self.install_manifest(&name, &manifest)?;
         }
     }
 
     #[throws]
-    pub fn remove(home: &mut Home, names: Vec<String>) -> () {
-        let store = home.manifest_store()?;
+    pub fn remove(&mut self, names: Vec<String>) -> () {
+        let store = self.repos().manifest_store()?;
         for name in names {
             let manifest = store
                 .load_manifest(&name)?
                 .ok_or_else(|| anyhow!("Binary {} not found", name))?;
-            remove_manifest(home, &name, &manifest)?;
+            self.remove_manifest(&name, &manifest)?;
         }
     }
 
     #[throws]
-    pub fn update(home: &mut Home, names: Option<Vec<String>>) -> () {
+    pub fn update(&mut self, names: Option<Vec<String>>) -> () {
+        let store = self.repos().manifest_store()?;
         match names {
             None => {
-                for manifest in home.manifest_store()?.manifests()? {
+                for manifest in store.manifests()? {
                     let manifest = manifest?;
-                    update_manifest(home, &manifest.info.name, &manifest)?;
+                    self.update_manifest(&manifest.info.name, &manifest)?;
                 }
             }
             Some(names) => {
-                let store = home.manifest_store()?;
                 for name in names {
                     let manifest = store
                         .load_manifest(&name)?
                         .ok_or_else(|| anyhow!("Binary {} not found", name))?;
-                    update_manifest(home, &name, &manifest)?;
+                    self.update_manifest(&name, &manifest)?;
                 }
             }
         }
     }
 
-    fn read_manifests<I: Iterator<Item = R>, R: AsRef<Path>>(
-        filenames: I,
-    ) -> Result<Vec<Manifest>> {
-        filenames.map(Manifest::read_from_path).collect()
-    }
-
-    pub fn manifest_list(home: &Home, filenames: Vec<PathBuf>, mode: List) -> Result<()> {
-        list_manifests(home, read_manifests(filenames.iter())?.iter(), mode)
+    pub fn manifest_list(&self, filenames: Vec<PathBuf>, mode: List) -> Result<()> {
+        self.list_manifests(read_manifests(filenames.iter())?.iter(), mode)
     }
 
     #[throws]
-    pub fn manifest_files(home: &Home, filenames: Vec<PathBuf>, existing: bool) -> () {
+    pub fn manifest_files(&self, filenames: Vec<PathBuf>, existing: bool) -> () {
         for manifest in read_manifests(filenames.iter())? {
-            list_files(home, &manifest, existing)?
+            self.list_files(&manifest, existing)?
         }
     }
 
     #[throws]
-    pub fn manifest_install(home: &mut Home, filenames: Vec<PathBuf>) -> () {
+    pub fn manifest_install(&mut self, filenames: Vec<PathBuf>) -> () {
         for filename in filenames {
             let manifest = Manifest::read_from_path(&filename)?;
-            install_manifest(home, &filename.display().to_string(), &manifest)?;
+            self.install_manifest(&filename.display().to_string(), &manifest)?;
         }
     }
 
     #[throws]
-    pub fn manifest_remove(home: &mut Home, filenames: Vec<PathBuf>) -> () {
+    pub fn manifest_remove(&mut self, filenames: Vec<PathBuf>) -> () {
         for filename in filenames {
             let manifest = Manifest::read_from_path(&filename)?;
-            remove_manifest(home, &filename.display().to_string(), &manifest)?;
+            self.remove_manifest(&filename.display().to_string(), &manifest)?;
         }
     }
 
     #[throws]
-    pub fn manifest_update(home: &mut Home, filenames: Vec<PathBuf>) -> () {
+    pub fn manifest_update(&mut self, filenames: Vec<PathBuf>) -> () {
         for filename in filenames {
             let manifest = Manifest::read_from_path(&filename)?;
-            update_manifest(home, &filename.display().to_string(), &manifest)?;
+            self.update_manifest(&filename.display().to_string(), &manifest)?;
         }
     }
 }
 
 #[allow(clippy::cognitive_complexity)]
-fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
-    use subcommands::{Installed, List};
+fn process_args(matches: &clap::ArgMatches) -> anyhow::Result<()> {
+    use clap::*;
 
-    let mut home = Home::open();
-    home.check_environment()?;
+    let mut commands = Commands::new()?;
 
     match matches.subcommand() {
-        ("list", _) => subcommands::list(&mut home, List::All),
-        ("", _) => subcommands::list(&mut home, List::Installed(Installed::All)),
-        ("installed", _) => subcommands::list(&mut home, List::Installed(Installed::All)),
-        ("outdated", _) => subcommands::list(&mut home, List::Installed(Installed::Outdated)),
-        ("files", Some(m)) => subcommands::files(
-            &mut home,
+        ("list", _) => commands.list(List::All),
+        ("", _) => commands.list(List::Installed(Installed::All)),
+        ("installed", _) => commands.list(List::Installed(Installed::All)),
+        ("outdated", _) => commands.list(List::Installed(Installed::Outdated)),
+        ("files", Some(m)) => commands.files(
             values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()),
             m.is_present("existing"),
         ),
-        ("install", Some(m)) => subcommands::install(
-            &mut home,
-            values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()),
-        ),
-        ("remove", Some(m)) => subcommands::remove(
-            &mut home,
-            values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()),
-        ),
+        ("install", Some(m)) => {
+            commands.install(values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()))
+        }
+        ("remove", Some(m)) => {
+            commands.remove(values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()))
+        }
         ("update", Some(m)) => {
             let names = if m.is_present("name") {
                 Some(values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()))
             } else {
                 None
             };
-            subcommands::update(&mut home, names)
+            commands.update(names)
         }
-        ("manifest-list", Some(m)) => subcommands::manifest_list(
-            &home,
+        ("manifest-list", Some(m)) => commands.manifest_list(
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
             List::All,
         ),
-        ("manifest-installed", Some(m)) => subcommands::manifest_list(
-            &home,
+        ("manifest-installed", Some(m)) => commands.manifest_list(
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
             List::Installed(Installed::All),
         ),
-        ("manifest-outdated", Some(m)) => subcommands::manifest_list(
-            &home,
+        ("manifest-outdated", Some(m)) => commands.manifest_list(
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
             List::Installed(Installed::Outdated),
         ),
-        ("manifest-files", Some(m)) => subcommands::manifest_files(
-            &home,
+        ("manifest-files", Some(m)) => commands.manifest_files(
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
             m.is_present("existing"),
         ),
-        ("manifest-install", Some(m)) => subcommands::manifest_install(
-            &mut home,
+        ("manifest-install", Some(m)) => commands.manifest_install(
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
         ),
-        ("manifest-remove", Some(m)) => subcommands::manifest_remove(
-            &mut home,
+        ("manifest-remove", Some(m)) => commands.manifest_remove(
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
         ),
-        ("manifest-update", Some(m)) => subcommands::manifest_update(
-            &mut home,
+        ("manifest-update", Some(m)) => commands.manifest_update(
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
         ),
         (other, _) => Err(anyhow!("Unknown subcommand: {}", other)),
@@ -296,6 +301,7 @@ fn process_args(matches: &ArgMatches) -> anyhow::Result<()> {
 }
 
 fn main() {
+    use clap::*;
     let app = app_from_crate!()
         .setting(AppSettings::DeriveDisplayOrder)
         .setting(AppSettings::ColoredHelp)
