@@ -251,14 +251,10 @@ pub fn outdated_manifest_version(dirs: &InstallDirs, manifest: &Manifest) -> Opt
 
 /// Get all files the `manifest` would install to `dirs`.
 pub fn files(dirs: &InstallDirs, manifest: &Manifest) -> Vec<PathBuf> {
-    let operations = operations::install_manifest(manifest);
-    let mut files = Vec::with_capacity(operations.len());
-    for operation in operations {
-        if let Operation::Copy(_, destination, _) = operation {
-            files.push(destination.target_dir(dirs).join(destination.target_name()))
-        }
-    }
-    files
+    operations::operation_destinations(operations::install_manifest(manifest).iter())
+        .iter()
+        .map(|destination| destination.target_dir(dirs).join(destination.target_name()))
+        .collect()
 }
 
 /// Remove all files installed by the given manifest.

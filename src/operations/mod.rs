@@ -93,6 +93,26 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
     operations
 }
 
+/// Get a list of all installation destinations within `operations`.
+pub fn operation_destinations<'a, I>(operations: I) -> Vec<Destination<'a>>
+where
+    I: Iterator<Item = &'a Operation<'a>>,
+{
+    let (min, max) = operations.size_hint();
+    let mut destinations: Vec<Destination> = Vec::with_capacity(max.unwrap_or(min));
+    for operation in operations {
+        match operation {
+            // TODO: Don't clone but always borrowed out of contained cows
+            Operation::Copy(_, destination, _) => destinations.push(destination.clone()),
+            Operation::Hardlink(_, target) => {
+                destinations.push(Destination::BinDir(Cow::from(target.as_ref())))
+            }
+            _ => {}
+        }
+    }
+    destinations
+}
+
 #[cfg(test)]
 mod tests {
     use crate::manifest::Shell;
@@ -100,6 +120,7 @@ mod tests {
     use crate::Manifest;
     use pretty_assertions::assert_eq;
     use std::borrow::Cow;
+    use url::Url;
 
     #[test]
     fn install_manifest_multiple_files() {
@@ -161,6 +182,41 @@ mod tests {
                     Destination::BinDir(Cow::Borrowed("shfmt")),
                     Permissions::Executable
                 )
+            ]
+        );
+    }
+
+    #[test]
+    fn install_destinations_all() {
+        let operations = vec![
+            Operation::Download(
+                Cow::Owned(Url::parse("https://example.com/file.tar.gz").unwrap()),
+                "file.tar.gz".into(),
+            ),
+            Operation::Copy(
+                Source::WorkDir("foo".into()),
+                Destination::CompletionDir(Shell::Fish, "foo.fish".into()),
+                Permissions::Regular,
+            ),
+            Operation::Copy(
+                Source::WorkDir("spam".into()),
+                Destination::BinDir("spam".into()),
+                Permissions::Executable,
+            ),
+            Operation::Hardlink("spam".into(), "eggs".into()),
+            Operation::Copy(
+                Source::WorkDir("spam.1".into()),
+                Destination::ManDir(42, "spam.1".into()),
+                Permissions::Regular,
+            ),
+        ];
+        assert_eq!(
+            operation_destinations(operations.iter()),
+            vec![
+                Destination::CompletionDir(Shell::Fish, "foo.fish".into()),
+                Destination::BinDir("spam".into()),
+                Destination::BinDir("eggs".into()),
+                Destination::ManDir(42, "spam.1".into())
             ]
         );
     }
