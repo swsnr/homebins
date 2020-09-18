@@ -88,3 +88,32 @@ pub enum Operation<'a> {
     /// Create a hard link, from the first to the second item.
     Hardlink(Cow<'a, str>, Cow<'a, str>),
 }
+
+#[cfg(test)]
+mod tests {
+
+    use crate::manifest::Shell;
+    use crate::operations::Destination;
+    use crate::InstallDirs;
+    use directories::BaseDirs;
+    use pretty_assertions::assert_eq;
+    use std::borrow::Cow;
+
+    #[test]
+    fn destination_target_dir() {
+        let dirs = InstallDirs::from_base_dirs(&BaseDirs::new().expect("base dirs"))
+            .expect("install dirs");
+        assert_eq!(
+            Destination::BinDir(Cow::from("foo")).target_dir(&dirs),
+            dirs.bin_dir(),
+        );
+        assert_eq!(
+            Destination::ManDir(3, Cow::from("foo.1")).target_dir(&dirs),
+            dirs.man_section_dir(3),
+        );
+        assert_eq!(
+            Destination::CompletionDir(Shell::Fish, Cow::from("foo.fish")).target_dir(&dirs),
+            dirs.shell_completion_dir(Shell::Fish)
+        )
+    }
+}

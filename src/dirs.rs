@@ -162,3 +162,30 @@ impl<'a> ManifestOperationDirs<'a> {
             .with_context(|| "Failed to delete manifest workdir".to_string())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::manifest::Shell;
+    use crate::InstallDirs;
+    use directories::BaseDirs;
+    use pretty_assertions::assert_eq;
+    use std::path::Path;
+
+    #[test]
+    fn install_dirs_from_base_dirs() {
+        std::env::set_var("XDG_CONFIG_HOME", "/test/config");
+        std::env::set_var("XDG_DATA_HOME", "/test/data_home");
+        std::env::set_var("XDG_BIN_DIR", "/test/bin");
+        let dirs = InstallDirs::from_base_dirs(&BaseDirs::new().expect("base dirs"))
+            .expect("install dirs");
+        assert_eq!(dirs.bin_dir(), Path::new("/test/bin"));
+        assert_eq!(
+            dirs.man_section_dir(4),
+            Path::new("/test/data_home/man/man4")
+        );
+        assert_eq!(
+            dirs.shell_completion_dir(Shell::Fish),
+            Path::new("/test/config/fish/completions")
+        );
+    }
+}
