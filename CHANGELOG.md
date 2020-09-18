@@ -9,8 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add support for additional binary hardlinks (see [GH-12]).
+- Add support for systemd user units (see [GH-14]).
 
 [GH-12]: https://github.com/lunaryorn/homebins/issues/12
+[GH-14]: https://github.com/lunaryorn/homebins/issues/14
 
 ## [0.0.5] – 2020-07-31
 

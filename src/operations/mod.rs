@@ -28,6 +28,10 @@ fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> Operatio
         Target::Manpage { section } => {
             (DestinationDirectory::ManDir(*section), Permissions::Regular)
         }
+        Target::SystemdUserUnit => (
+            DestinationDirectory::SystemdUserUnitDir,
+            Permissions::Regular,
+        ),
         Target::Completion { shell } => (
             DestinationDirectory::CompletionDir(*shell),
             Permissions::Regular,
@@ -160,6 +164,14 @@ mod tests {
                     Destination::new(CompletionDir(Shell::Fish), Cow::from("rg.fish")),
                     Permissions::Regular
                 ),
+                Operation::Copy(
+                    Source::new(
+                        WorkDir,
+                        Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl/rg.unit")
+                    ),
+                    Destination::new(SystemdUserUnitDir, Cow::from("rg.unit")),
+                    Permissions::Regular
+                )
             ]
         );
     }

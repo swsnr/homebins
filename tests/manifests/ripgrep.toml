@@ -15,5 +15,7 @@ checksums.b2 = "1c97a37e109f818bce8e974eb3a29eb8d1ca488e048caff658696211e8cad237
 files = [
     { source = "ripgrep-12.1.1-x86_64-unknown-linux-musl/rg", type = "bin", links = ["ripgrep"] },
     { source = "ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1", type = "manpage", section = 1 },
-    { source = "ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish", type = "completion", shell = "fish" }
+    { source = "ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish", type = "completion", shell = "fish" },
+    # ripgrep has no systemd service, but for the sake of testing assume it has one
+    { source = "ripgrep-12.1.1-x86_64-unknown-linux-musl/rg.unit", type = "systemd_user_unit" }
 ]

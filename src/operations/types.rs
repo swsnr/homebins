@@ -27,6 +27,8 @@ pub enum DestinationDirectory {
     BinDir,
     /// The directory for manpages of the given section.
     ManDir(u8),
+    /// The directory for systemd user units.
+    SystemdUserUnitDir,
     /// The directory for completion files for the given shell.
     CompletionDir(Shell),
 }

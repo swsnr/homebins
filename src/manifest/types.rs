@@ -144,6 +144,9 @@ pub enum Target {
         /// The section of this manpage, from 1 to 9.
         section: u8,
     },
+    /// A systemd user unit file.
+    #[serde(rename = "systemd_user_unit")]
+    SystemdUserUnit,
     /// An tab completion helper for a shell.
     #[serde(rename = "completion")]
     Completion {
@@ -300,6 +303,11 @@ mod tests {
                                 source: "ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish".to_string(),
                                 name: None,
                                 target: Target::Completion { shell: Shell::Fish },
+                            },
+                            InstallFile {
+                                source: "ripgrep-12.1.1-x86_64-unknown-linux-musl/rg.unit".to_string(),
+                                name: None,
+                                target: Target::SystemdUserUnit
                             }
                         ],
                     }

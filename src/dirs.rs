@@ -67,6 +67,7 @@ impl HomebinProjectDirs {
 pub struct InstallDirs {
     bin_dir: PathBuf,
     man_base_dir: PathBuf,
+    systemd_user_unit_dir: PathBuf,
     fish_completion_dir: PathBuf,
 }
 
@@ -81,6 +82,8 @@ impl InstallDirs {
                 })?
                 .to_path_buf(),
             man_base_dir: dirs.data_local_dir().join("man"),
+            // According to systemd.unit(5) this is the place for units of packages installed to $HOME
+            systemd_user_unit_dir: dirs.data_local_dir().join("systemd").join("user"),
             fish_completion_dir: dirs.config_dir().join("fish").join("completions"),
         })
     }
@@ -102,6 +105,11 @@ impl InstallDirs {
         self.man_base_dir.join(format!("man{}", section))
     }
 
+    /// The directory for systemd user units.
+    pub fn systemd_user_unit_dir(&self) -> &Path {
+        &self.systemd_user_unit_dir
+    }
+
     /// The directory for completion files of the given `shell`.
     pub fn shell_completion_dir(&self, shell: Shell) -> &Path {
         match shell {
@@ -114,6 +122,7 @@ impl InstallDirs {
         match directory {
             DestinationDirectory::BinDir => Cow::from(&self.bin_dir),
             DestinationDirectory::ManDir(section) => Cow::from(self.man_section_dir(section)),
+            DestinationDirectory::SystemdUserUnitDir => Cow::from(&self.systemd_user_unit_dir),
             DestinationDirectory::CompletionDir(shell) => {
                 Cow::from(self.shell_completion_dir(shell))
             }
@@ -206,6 +215,10 @@ mod tests {
         assert_eq!(
             dirs.path(DestinationDirectory::ManDir(4)),
             Path::new("/test/data_home/man/man4")
+        );
+        assert_eq!(
+            dirs.path(DestinationDirectory::SystemdUserUnitDir),
+            Path::new("/test/data_home/systemd/user")
         );
         assert_eq!(
             dirs.path(DestinationDirectory::CompletionDir(Shell::Fish)),
