@@ -76,7 +76,7 @@ impl InstallDirs {
             bin_dir: dirs
                 .executable_dir()
                 .with_context(|| {
-                    "Connot determine executable directory from base dirs".to_string()
+                    "Cannot determine executable directory from base dirs".to_string()
                 })?
                 .to_path_buf(),
             man_base_dir: dirs.data_local_dir().join("man"),
