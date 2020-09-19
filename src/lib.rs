@@ -12,6 +12,7 @@
 
 use std::fs::File;
 use std::os::unix::fs::PermissionsExt;
+use std::path::PathBuf;
 use std::process::Command;
 
 use anyhow::{anyhow, Context, Error};
@@ -24,9 +25,8 @@ pub use manifest::{Manifest, ManifestRepo, ManifestStore};
 pub use repos::HomebinRepos;
 
 use crate::checksum::Validate;
-use crate::operations::{Operation, Source};
+use crate::operations::Operation;
 use crate::tools::{curl, extract, manpath, path_contains};
-use std::path::PathBuf;
 
 mod checksum;
 mod dirs;
@@ -114,17 +114,18 @@ where
             Copy(source, destination, permissions) => {
                 let fs_permissions = permissions.to_unix_permissions();
                 let mode = fs_permissions.mode();
-                let (source_name, source_path) = match source {
-                    Source::Download(name) => (name, dirs.download_dir().join(name.as_ref())),
-                    Source::WorkDir(name) => (name, dirs.work_dir().join(name.as_ref())),
-                };
-                let target_dir = destination.target_dir(dirs.install_dirs());
-                let target_name = destination.target_name();
-                let target = target_dir.join(target_name);
-                println!("install -m{:o} {} {}", mode, source_name, target.display());
+                let source_path = dirs.path(source.directory()).join(source.name());
+                let target_dir = dirs.install_dirs().path(destination.directory());
+                let target = target_dir.join(destination.name());
+                println!(
+                    "install -m{:o} {} {}",
+                    mode,
+                    source.name(),
+                    target.display()
+                );
                 std::fs::create_dir_all(&target_dir)?;
                 let mut temp_target = tempfile::Builder::new()
-                    .prefix(target_name)
+                    .prefix(destination.name())
                     .tempfile_in(&target_dir)
                     .with_context(|| {
                         format!(
@@ -250,7 +251,7 @@ pub fn outdated_manifest_version(dirs: &InstallDirs, manifest: &Manifest) -> Opt
 pub fn files(dirs: &InstallDirs, manifest: &Manifest) -> Vec<PathBuf> {
     operations::operation_destinations(operations::install_manifest(manifest).iter())
         .iter()
-        .map(|destination| destination.target_dir(dirs).join(destination.target_name()))
+        .map(|destination| dirs.path(destination.directory()).join(destination.name()))
         .collect()
 }
 

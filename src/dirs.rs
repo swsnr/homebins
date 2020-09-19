@@ -5,6 +5,7 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use crate::manifest::Shell;
+use crate::operations::{DestinationDirectory, SourceDirectory};
 use crate::Manifest;
 use anyhow::{Context, Result};
 use directories::{BaseDirs, ProjectDirs};
@@ -98,13 +99,24 @@ impl InstallDirs {
     ///
     /// This is the corresponding sub-directory of the man_dir.
     pub fn man_section_dir(&self, section: u8) -> PathBuf {
-        self.man_dir().join(format!("man{}", section))
+        self.man_base_dir.join(format!("man{}", section))
     }
 
     /// The directory for completion files of the given `shell`.
-    pub fn shell_completion_dir(&self, shell: Shell) -> Cow<Path> {
+    pub fn shell_completion_dir(&self, shell: Shell) -> &Path {
         match shell {
-            Shell::Fish => Cow::Borrowed(&self.fish_completion_dir),
+            Shell::Fish => &self.fish_completion_dir,
+        }
+    }
+
+    /// Get the path for the given destination directory.
+    pub fn path(&self, directory: DestinationDirectory) -> Cow<Path> {
+        match directory {
+            DestinationDirectory::BinDir => Cow::from(&self.bin_dir),
+            DestinationDirectory::ManDir(section) => Cow::from(self.man_section_dir(section)),
+            DestinationDirectory::CompletionDir(shell) => {
+                Cow::from(self.shell_completion_dir(shell))
+            }
         }
     }
 }
@@ -153,6 +165,14 @@ impl<'a> ManifestOperationDirs<'a> {
         &self.work_dir.path()
     }
 
+    /// Get the path of the given source directory.
+    pub fn path(&self, directory: SourceDirectory) -> &Path {
+        match directory {
+            SourceDirectory::Download => &self.download_dir,
+            SourceDirectory::WorkDir => &self.work_dir.path(),
+        }
+    }
+
     /// Close these directories, i.e. delete the working directory.
     ///
     /// Also happens when dropped.
@@ -166,6 +186,7 @@ impl<'a> ManifestOperationDirs<'a> {
 #[cfg(test)]
 mod tests {
     use crate::manifest::Shell;
+    use crate::operations::DestinationDirectory;
     use crate::InstallDirs;
     use directories::BaseDirs;
     use pretty_assertions::assert_eq;
@@ -178,13 +199,16 @@ mod tests {
         std::env::set_var("XDG_BIN_DIR", "/test/bin");
         let dirs = InstallDirs::from_base_dirs(&BaseDirs::new().expect("base dirs"))
             .expect("install dirs");
-        assert_eq!(dirs.bin_dir(), Path::new("/test/bin"));
         assert_eq!(
-            dirs.man_section_dir(4),
+            dirs.path(DestinationDirectory::BinDir),
+            Path::new("/test/bin")
+        );
+        assert_eq!(
+            dirs.path(DestinationDirectory::ManDir(4)),
             Path::new("/test/data_home/man/man4")
         );
         assert_eq!(
-            dirs.shell_completion_dir(Shell::Fish),
+            dirs.path(DestinationDirectory::CompletionDir(Shell::Fish)),
             Path::new("/test/config/fish/completions")
         );
     }

@@ -23,19 +23,17 @@ fn number_of_operations(download: &InstallDownload) -> usize {
 
 fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> Operation<'a> {
     use Operation::Copy;
-    match target {
-        Target::Binary { .. } => Copy(source, Destination::BinDir(name), Permissions::Executable),
-        Target::Manpage { section } => Copy(
-            source,
-            Destination::ManDir(*section, name),
+    let (dir, permissions) = match target {
+        Target::Binary { .. } => (DestinationDirectory::BinDir, Permissions::Executable),
+        Target::Manpage { section } => {
+            (DestinationDirectory::ManDir(*section), Permissions::Regular)
+        }
+        Target::Completion { shell } => (
+            DestinationDirectory::CompletionDir(*shell),
             Permissions::Regular,
         ),
-        Target::Completion { shell } => Copy(
-            source,
-            Destination::CompletionDir(*shell, name),
-            Permissions::Regular,
-        ),
-    }
+    };
+    Copy(source, Destination::new(dir, name), permissions)
 }
 
 fn add_links<'a>(target: &'a Target, target_name: &'a str, operations: &mut Vec<Operation<'a>>) {
@@ -62,7 +60,7 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
             Install::SingleFile { name, target } => {
                 let target_name = name.as_deref().unwrap_or(filename);
                 operations.push(copy(
-                    Source::Download(Borrowed(filename)),
+                    Source::new(SourceDirectory::Download, Cow::from(filename)),
                     target,
                     Cow::Borrowed(target_name),
                 ));
@@ -78,7 +76,7 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
                             .expect("rsplit should always be non-empty!")
                     });
                     operations.push(copy(
-                        Source::WorkDir(Borrowed(file.source.as_str())),
+                        Source::new(SourceDirectory::WorkDir, Cow::from(file.source.as_str())),
                         &file.target,
                         Cow::from(name),
                     ));
@@ -100,10 +98,14 @@ where
     for operation in operations {
         match operation {
             // TODO: Don't clone but always borrowed out of contained cows
-            Operation::Copy(_, destination, _) => destinations.push(destination.clone()),
-            Operation::Hardlink(_, target) => {
-                destinations.push(Destination::BinDir(Cow::from(target.as_ref())))
-            }
+            Operation::Copy(_, destination, _) => destinations.push(Destination::new(
+                destination.directory(),
+                Cow::from(destination.name()),
+            )),
+            Operation::Hardlink(_, target) => destinations.push(Destination::new(
+                DestinationDirectory::BinDir,
+                Cow::from(target.as_ref()),
+            )),
             _ => {}
         }
     }
@@ -113,6 +115,8 @@ where
 #[cfg(test)]
 mod tests {
     use crate::manifest::{Checksums, Shell};
+    use crate::operations::DestinationDirectory::*;
+    use crate::operations::SourceDirectory::*;
     use crate::operations::*;
     use crate::Manifest;
     use pretty_assertions::assert_eq;
@@ -130,27 +134,30 @@ mod tests {
                     Cow::Borrowed("ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz"),
                     Cow::Borrowed(&manifest.install[0].checksums),
                 ),
-                Operation::Extract(Cow::Borrowed(
-                    "ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz"
-                )),
+                Operation::Extract(Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz")),
                 Operation::Copy(
-                    Source::WorkDir(Cow::Borrowed("ripgrep-12.1.1-x86_64-unknown-linux-musl/rg")),
-                    Destination::BinDir(Cow::Borrowed("rg")),
+                    Source::new(
+                        WorkDir,
+                        Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl/rg")
+                    ),
+                    Destination::new(BinDir, Cow::from("rg")),
                     Permissions::Executable
                 ),
-                Operation::Hardlink(Cow::Borrowed("rg"), Cow::Borrowed("ripgrep")),
+                Operation::Hardlink(Cow::Borrowed("rg"), Cow::from("ripgrep")),
                 Operation::Copy(
-                    Source::WorkDir(Cow::Borrowed(
-                        "ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1"
-                    )),
-                    Destination::ManDir(1, Cow::Borrowed("rg.1")),
+                    Source::new(
+                        WorkDir,
+                        Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1")
+                    ),
+                    Destination::new(ManDir(1), Cow::from("rg.1")),
                     Permissions::Regular
                 ),
                 Operation::Copy(
-                    Source::WorkDir(Cow::Borrowed(
-                        "ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish"
-                    )),
-                    Destination::CompletionDir(Shell::Fish, Cow::Borrowed("rg.fish")),
+                    Source::new(
+                        WorkDir,
+                        Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish")
+                    ),
+                    Destination::new(CompletionDir(Shell::Fish), Cow::from("rg.fish")),
                     Permissions::Regular
                 ),
             ]
@@ -165,12 +172,12 @@ mod tests {
             vec![
                 Operation::Download(
                     Cow::Borrowed(&manifest.install[0].download),
-                    Cow::Borrowed("shfmt_v3.1.1_linux_amd64"),
+                    Cow::from("shfmt_v3.1.1_linux_amd64"),
                     Cow::Borrowed(&manifest.install[0].checksums),
                 ),
                 Operation::Copy(
-                    Source::Download(Cow::Borrowed("shfmt_v3.1.1_linux_amd64")),
-                    Destination::BinDir(Cow::Borrowed("shfmt")),
+                    Source::new(Download, Cow::from("shfmt_v3.1.1_linux_amd64")),
+                    Destination::new(BinDir, Cow::from("shfmt")),
                     Permissions::Executable
                 )
             ]
@@ -186,29 +193,29 @@ mod tests {
                 Cow::Owned(Checksums::default()),
             ),
             Operation::Copy(
-                Source::WorkDir("foo".into()),
-                Destination::CompletionDir(Shell::Fish, "foo.fish".into()),
+                Source::new(WorkDir, "foo".into()),
+                Destination::new(CompletionDir(Shell::Fish), "foo.fish".into()),
                 Permissions::Regular,
             ),
             Operation::Copy(
-                Source::WorkDir("spam".into()),
-                Destination::BinDir("spam".into()),
+                Source::new(WorkDir, "spam".into()),
+                Destination::new(BinDir, "spam".into()),
                 Permissions::Executable,
             ),
             Operation::Hardlink("spam".into(), "eggs".into()),
             Operation::Copy(
-                Source::WorkDir("spam.1".into()),
-                Destination::ManDir(42, "spam.1".into()),
+                Source::new(WorkDir, "spam.1".into()),
+                Destination::new(ManDir(42), "spam.1".into()),
                 Permissions::Regular,
             ),
         ];
         assert_eq!(
             operation_destinations(operations.iter()),
             vec![
-                Destination::CompletionDir(Shell::Fish, "foo.fish".into()),
-                Destination::BinDir("spam".into()),
-                Destination::BinDir("eggs".into()),
-                Destination::ManDir(42, "spam.1".into())
+                Destination::new(CompletionDir(Shell::Fish), "foo.fish".into()),
+                Destination::new(BinDir, "spam".into()),
+                Destination::new(BinDir, "eggs".into()),
+                Destination::new(ManDir(42), "spam.1".into())
             ]
         );
     }

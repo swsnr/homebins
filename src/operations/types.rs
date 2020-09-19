@@ -5,49 +5,30 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 use crate::manifest::{Checksums, Shell};
-use crate::InstallDirs;
 use std::borrow::Cow;
-use std::path::Path;
+use std::ops::Deref;
 use url::Url;
 
-/// A source for a copy operation.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Source<'a> {
-    /// A downloaded file in the manifest download directory.
-    Download(Cow<'a, str>),
-    /// A file path in the manifest work directory.
-    WorkDir(Cow<'a, str>),
+/// A source directory for manifest installation.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum SourceDirectory {
+    /// The download directory of a manifest.
+    Download,
+    /// The working directory during manifest installation.
+    ///
+    /// This directory contains files from extracted archives.
+    WorkDir,
 }
 
-/// The destination of a copy operation.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Destination<'a> {
-    /// Install to the binary dir at the given name.
-    BinDir(Cow<'a, str>),
-    /// Install to the man dir for the given section at the given name.
-    ManDir(u8, Cow<'a, str>),
-    /// Install to the completions directory for the given shell at the given name.
-    CompletionDir(Shell, Cow<'a, str>),
-}
-
-impl Destination<'_> {
-    /// Get the target directory for this destination within `dirs`.
-    pub fn target_dir<'a>(&self, dirs: &'a InstallDirs) -> Cow<'a, Path> {
-        match *self {
-            Destination::BinDir(_) => Cow::from(dirs.bin_dir()),
-            Destination::ManDir(section, _) => Cow::from(dirs.man_section_dir(section)),
-            Destination::CompletionDir(shell, _) => dirs.shell_completion_dir(shell),
-        }
-    }
-
-    /// Get the target name for this destination.
-    pub fn target_name(&self) -> &str {
-        match self {
-            Destination::BinDir(ref name) => name,
-            Destination::ManDir(_, ref name) => name,
-            Destination::CompletionDir(_, ref name) => name,
-        }
-    }
+/// The target directory for a copy operation.
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum DestinationDirectory {
+    /// The directory for binaries.
+    BinDir,
+    /// The directory for manpages of the given section.
+    ManDir(u8),
+    /// The directory for completion files for the given shell.
+    CompletionDir(Shell),
 }
 
 /// Permissions for the target of a copy operation.
@@ -76,6 +57,42 @@ impl Permissions {
     }
 }
 
+/// The source or destination of a copy operation
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CopyOperand<'a, D> {
+    /// The directory to copy from or to.
+    directory: D,
+    /// The name of the file to copy.
+    name: Cow<'a, str>,
+}
+
+impl<'a, D> CopyOperand<'a, D> {
+    /// Create a new copy operand.
+    pub fn new(directory: D, name: Cow<'a, str>) -> Self {
+        CopyOperand { directory, name }
+    }
+
+    /// The name of the file to copy.
+    pub fn name(&self) -> &str {
+        self.name.deref()
+    }
+}
+
+impl<'a, D> CopyOperand<'a, D>
+where
+    D: Copy,
+{
+    /// The directory to copy from or to.
+    pub fn directory(&self) -> D {
+        self.directory
+    }
+}
+
+/// The source of a copy operation.
+pub type Source<'a> = CopyOperand<'a, SourceDirectory>;
+/// The destination of a copy operation.
+pub type Destination<'a> = CopyOperand<'a, DestinationDirectory>;
+
 /// Operations to apply a manifest to a home directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operation<'a> {
@@ -87,33 +104,4 @@ pub enum Operation<'a> {
     Copy(Source<'a>, Destination<'a>, Permissions),
     /// Create a hard link, from the first to the second item.
     Hardlink(Cow<'a, str>, Cow<'a, str>),
-}
-
-#[cfg(test)]
-mod tests {
-
-    use crate::manifest::Shell;
-    use crate::operations::Destination;
-    use crate::InstallDirs;
-    use directories::BaseDirs;
-    use pretty_assertions::assert_eq;
-    use std::borrow::Cow;
-
-    #[test]
-    fn destination_target_dir() {
-        let dirs = InstallDirs::from_base_dirs(&BaseDirs::new().expect("base dirs"))
-            .expect("install dirs");
-        assert_eq!(
-            Destination::BinDir(Cow::from("foo")).target_dir(&dirs),
-            dirs.bin_dir(),
-        );
-        assert_eq!(
-            Destination::ManDir(3, Cow::from("foo.1")).target_dir(&dirs),
-            dirs.man_section_dir(3),
-        );
-        assert_eq!(
-            Destination::CompletionDir(Shell::Fish, Cow::from("foo.fish")).target_dir(&dirs),
-            dirs.shell_completion_dir(Shell::Fish)
-        )
-    }
 }
