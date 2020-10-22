@@ -761,9 +761,9 @@ checksum = "b5a972e5669d67ba988ce3dc826706fb0a8b01471c088cb0b6110b805cc36aed"
 
 [[package]]
 name = "versions"
-version = "1.0.1"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94cb250b63f6d494f209be7d1fbcc1b7eb3041b4677c3645663f8b9452b63f0c"
+checksum = "978b451a18f440f71e9f796c2a0fd9f680d55e78c599f4cb725b07a3f0bbced1"
 dependencies = [
  "itertools",
  "nom",

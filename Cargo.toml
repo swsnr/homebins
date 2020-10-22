@@ -23,7 +23,7 @@ serde = { version = "^1.0", features=["derive"] }
 # Download URLs
 url = "^2.1"
 # Version numbers (not just semver, because we deal with all sorts of versions)
-versions = "^1"
+versions = "^2"
 # Extract version numbers for command output
 regex = "^1.3"
 # License expressions
