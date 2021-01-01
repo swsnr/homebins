@@ -13,7 +13,7 @@ categories = ["command-line-utilities"]
 
 [dependencies]
 # Coloured ANSI output
-colored = "^1.9"
+colored = "^2.0"
 # CLI interface
 clap = "^2.33"
 
