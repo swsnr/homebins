@@ -105,17 +105,15 @@ pub struct Checksums {
 impl Checksums {
     /// Whether these checksums are empty.
     pub fn is_empty(&self) -> bool {
-        if let Checksums {
-            b2: None,
-            sha512: None,
-            sha256: None,
-            sha1: None,
-        } = self
-        {
-            true
-        } else {
-            false
-        }
+        matches!(
+            self,
+            Checksums {
+                b2: None,
+                sha512: None,
+                sha256: None,
+                sha1: None,
+            }
+        )
     }
 }
 
