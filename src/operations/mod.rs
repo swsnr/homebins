@@ -12,13 +12,38 @@ use crate::manifest::{Install, InstallDownload, Manifest, Target};
 use std::borrow::Cow;
 use std::borrow::Cow::Borrowed;
 
-fn number_of_operations(download: &InstallDownload) -> usize {
-    let no_files = match &download.install {
-        Install::SingleFile { .. } => 1,
-        Install::FilesFromArchive { files } => files.len(),
-    };
-    // Download and checksum validation
-    no_files + 2
+trait ApproxNumberOfOperations {
+    fn approx_number_of_operations(&self) -> usize;
+}
+
+impl ApproxNumberOfOperations for Target {
+    fn approx_number_of_operations(&self) -> usize {
+        match self {
+            Target::Binary { links } => links.len() + 1,
+            _ => 1,
+        }
+    }
+}
+
+impl ApproxNumberOfOperations for InstallDownload {
+    fn approx_number_of_operations(&self) -> usize {
+        match &self.install {
+            Install::SingleFile { target, .. } => target.approx_number_of_operations(),
+            Install::FilesFromArchive { files } => files
+                .iter()
+                .map(|f| f.target.approx_number_of_operations())
+                .sum(),
+        }
+    }
+}
+
+impl ApproxNumberOfOperations for Manifest {
+    fn approx_number_of_operations(&self) -> usize {
+        self.install
+            .iter()
+            .map(ApproxNumberOfOperations::approx_number_of_operations)
+            .sum()
+    }
 }
 
 fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> Operation<'a> {
@@ -50,8 +75,7 @@ fn add_links<'a>(target: &'a Target, target_name: &'a str, operations: &mut Vec<
 
 /// Create a list of operations necessary to install `manifest`.
 pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
-    let number_of_operations = manifest.install.iter().map(number_of_operations).sum();
-    let mut operations = Vec::with_capacity(number_of_operations);
+    let mut operations = Vec::with_capacity(manifest.approx_number_of_operations());
     for download in &manifest.install {
         let filename = download.filename();
         operations.push(Operation::Download(
@@ -108,7 +132,7 @@ where
                 DestinationDirectory::BinDir,
                 Cow::from(target.as_ref()),
             )),
-            _ => None
+            _ => None,
         }
     })
 }
