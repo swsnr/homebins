@@ -4,13 +4,11 @@
 // License, v. 2.0. If a copy of the MPL was not distributed with this
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-mod types;
-
-pub use types::*;
-
 use crate::manifest::{Install, InstallDownload, Manifest, Target};
 use std::borrow::Cow;
 use std::borrow::Cow::Borrowed;
+
+use super::types::*;
 
 trait ApproxNumberOfOperations {
     fn approx_number_of_operations(&self) -> usize;
@@ -118,8 +116,8 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
 
 /// Get a list of all installation destinations within `operations`.
 pub fn operation_destinations<'a, I>(operations: I) -> impl Iterator<Item = Destination<'a>>
-where
-    I: Iterator<Item = &'a Operation<'a>>,
+    where
+        I: Iterator<Item = &'a Operation<'a>>,
 {
     operations.filter_map(|operation| {
         match operation {
