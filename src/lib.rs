@@ -250,7 +250,6 @@ pub fn outdated_manifest_version(dirs: &InstallDirs, manifest: &Manifest) -> Opt
 /// Get all files the `manifest` would install to `dirs`.
 pub fn files(dirs: &InstallDirs, manifest: &Manifest) -> Vec<PathBuf> {
     operations::operation_destinations(operations::install_manifest(manifest).iter())
-        .iter()
         .map(|destination| dirs.path(destination.directory()).join(destination.name()))
         .collect()
 }

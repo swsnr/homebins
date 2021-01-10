@@ -93,27 +93,24 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
 }
 
 /// Get a list of all installation destinations within `operations`.
-pub fn operation_destinations<'a, I>(operations: I) -> Vec<Destination<'a>>
+pub fn operation_destinations<'a, I>(operations: I) -> impl Iterator<Item = Destination<'a>>
 where
     I: Iterator<Item = &'a Operation<'a>>,
 {
-    let (min, max) = operations.size_hint();
-    let mut destinations: Vec<Destination> = Vec::with_capacity(max.unwrap_or(min));
-    for operation in operations {
+    operations.filter_map(|operation| {
         match operation {
             // TODO: Don't clone but always borrowed out of contained cows
-            Operation::Copy(_, destination, _) => destinations.push(Destination::new(
+            Operation::Copy(_, destination, _) => Some(Destination::new(
                 destination.directory(),
                 Cow::from(destination.name()),
             )),
-            Operation::Hardlink(_, target) => destinations.push(Destination::new(
+            Operation::Hardlink(_, target) => Some(Destination::new(
                 DestinationDirectory::BinDir,
                 Cow::from(target.as_ref()),
             )),
-            _ => {}
+            _ => None
         }
-    }
-    destinations
+    })
 }
 
 #[cfg(test)]
@@ -222,7 +219,7 @@ mod tests {
             ),
         ];
         assert_eq!(
-            operation_destinations(operations.iter()),
+            operation_destinations(operations.iter()).collect::<Vec<Destination>>(),
             vec![
                 Destination::new(CompletionDir(Shell::Fish), "foo.fish".into()),
                 Destination::new(BinDir, "spam".into()),
