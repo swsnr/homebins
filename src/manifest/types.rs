@@ -208,6 +208,23 @@ where
     })
 }
 
+/// An extra file to remove when uninstalling.
+#[derive(Debug, PartialEq, Eq, Deserialize)]
+pub struct AdditionalFileToRemove {
+    /// The name of the file to remove
+    pub name: String,
+    /// The target to remove the file from
+    #[serde(flatten)]
+    pub target: Target,
+}
+
+/// Instructions for manifest removal.
+#[derive(Default, Debug, PartialEq, Eq, Deserialize)]
+pub struct Remove {
+    /// A list of additional files to remove during manifest removal.
+    pub additional_files: Vec<AdditionalFileToRemove>,
+}
+
 /// An installation definition.
 ///
 /// A URL to download, extract if required, and install to $HOME.
@@ -246,6 +263,9 @@ pub struct Manifest {
     pub discover: Discover,
     /// A list of install steps to install this binary.
     pub install: Vec<InstallDownload>,
+    /// Extra files to remove upon uninstalling
+    #[serde(default)]
+    pub remove: Remove,
 }
 
 impl Manifest {
@@ -308,9 +328,15 @@ mod tests {
                                 target: Target::SystemdUserUnit
                             }
                         ],
-                    }
+                    },
                 }
             ],
+            remove: Remove {
+                additional_files: vec![AdditionalFileToRemove {
+                    name: "rg.old".to_string(),
+                    target: Target::Binary { links: Vec::new() },
+                }]
+            }
         })
     }
 
@@ -342,8 +368,9 @@ mod tests {
                     install: Install::SingleFile {
                         name: Some("shfmt".to_string()),
                         target: Target::Binary { links: Vec::new() }
-                    }
-                }]
+                    },
+                }],
+                remove: Default::default(),
             }
         )
     }

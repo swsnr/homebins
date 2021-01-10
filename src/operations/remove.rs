@@ -6,6 +6,7 @@
 
 use super::install::{install_manifest, operation_destinations};
 use super::types::*;
+use super::util::*;
 use crate::Manifest;
 
 /// Create a list of operations necessary to remove `manifest`.
@@ -17,6 +18,10 @@ pub fn remove_manifest(manifest: &Manifest) -> Vec<RemoveOperation<'_>> {
             destination.directory(),
             destination.name().to_string().into(),
         ));
+    }
+    for to_remove in &manifest.remove.additional_files {
+        let (dir, _) = dir_and_permissions(&to_remove.target);
+        remove_ops.push(RemoveOperation::Delete(dir, (&to_remove.name).into()))
     }
     remove_ops
 }

@@ -22,7 +22,7 @@ pub use dirs::*;
 pub use manifest::{Manifest, ManifestRepo, ManifestStore};
 pub use repos::HomebinRepos;
 
-use crate::operations::ApplyOperation;
+use crate::operations::{ApplyOperation, RemoveOperation};
 use crate::tools::{manpath, path_contains};
 
 mod checksum;
@@ -178,8 +178,18 @@ pub fn outdated_manifest_version(dirs: &InstallDirs, manifest: &Manifest) -> Opt
 }
 
 /// Get all files the `manifest` would install to `dirs`.
-pub fn files(dirs: &InstallDirs, manifest: &Manifest) -> Vec<PathBuf> {
+pub fn installed_files(dirs: &InstallDirs, manifest: &Manifest) -> Vec<PathBuf> {
     operations::operation_destinations(operations::install_manifest(manifest).iter())
         .map(|destination| dirs.path(destination.directory()).join(destination.name()))
+        .collect()
+}
+
+/// Get all files that would be removed when removing `manifest`.
+pub fn files_to_remove(dirs: &InstallDirs, manifest: &Manifest) -> Vec<PathBuf> {
+    operations::remove_manifest(manifest)
+        .iter()
+        .map(|op| match op {
+            RemoveOperation::Delete(dir, name) => dirs.path(*dir).join(name.as_ref()),
+        })
         .collect()
 }

@@ -9,6 +9,7 @@ use std::borrow::Cow;
 use std::borrow::Cow::Borrowed;
 
 use super::types::*;
+use super::util::*;
 
 trait ApproxNumberOfOperations {
     fn approx_number_of_operations(&self) -> usize;
@@ -46,20 +47,7 @@ impl ApproxNumberOfOperations for Manifest {
 
 fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> InstallOperation<'a> {
     use InstallOperation::Copy;
-    let (dir, permissions) = match target {
-        Target::Binary { .. } => (DestinationDirectory::BinDir, Permissions::Executable),
-        Target::Manpage { section } => {
-            (DestinationDirectory::ManDir(*section), Permissions::Regular)
-        }
-        Target::SystemdUserUnit => (
-            DestinationDirectory::SystemdUserUnitDir,
-            Permissions::Regular,
-        ),
-        Target::Completion { shell } => (
-            DestinationDirectory::CompletionDir(*shell),
-            Permissions::Regular,
-        ),
-    };
+    let (dir, permissions) = dir_and_permissions(target);
     Copy(source, Destination::new(dir, name), permissions)
 }
 
