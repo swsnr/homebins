@@ -182,6 +182,16 @@ impl<'a> ManifestOperationDirs<'a> {
         }
     }
 
+    /// Ensure that all directories exist.
+    pub fn ensure(&self) -> Result<()> {
+        std::fs::create_dir_all(self.download_dir()).with_context(|| {
+            format!(
+                "Failed to create download directory at {}",
+                self.download_dir().display()
+            )
+        })
+    }
+
     /// Close these directories, i.e. delete the working directory.
     ///
     /// Also happens when dropped.

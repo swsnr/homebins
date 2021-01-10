@@ -74,29 +74,6 @@ pub fn check_environment(install_dirs: &InstallDirs) -> () {
     }
 }
 
-/// Install a manifest.
-///
-/// Apply the operations of a `manifest` against the given `install_dirs`; using the given project `dirs` for downloads.
-#[throws]
-pub fn install_manifest(
-    dirs: &HomebinProjectDirs,
-    install_dirs: &mut InstallDirs,
-    manifest: &Manifest,
-) -> () {
-    let op_dirs = ManifestOperationDirs::for_manifest(dirs, install_dirs, manifest)?;
-    let operations = operations::install_manifest(manifest);
-    std::fs::create_dir_all(op_dirs.download_dir()).with_context(|| {
-        format!(
-            "Failed to create download directory at {}",
-            dirs.download_dir().display()
-        )
-    })?;
-
-    for operation in operations {
-        operation.apply_operation(&op_dirs)?;
-    }
-}
-
 #[throws]
 fn apply_operations(
     dirs: &HomebinProjectDirs,
@@ -105,15 +82,15 @@ fn apply_operations(
     operations: &[Operation<'_>],
 ) -> () {
     let op_dirs = ManifestOperationDirs::for_manifest(dirs, install_dirs, manifest)?;
+    op_dirs.ensure()?;
     for operation in operations {
         operation.apply_operation(&op_dirs)?;
     }
 }
-
-/// Remove a manifest.
+/// Install a manifest.
 ///
-/// Apply the remove operations of the `manifest` against the given install dirs.
-pub fn remove_manifest(
+/// Apply the operations of a `manifest` against the given `install_dirs`; using the given project `dirs` for downloads.
+pub fn install_manifest(
     dirs: &HomebinProjectDirs,
     install_dirs: &mut InstallDirs,
     manifest: &Manifest,
@@ -122,7 +99,7 @@ pub fn remove_manifest(
         dirs,
         install_dirs,
         manifest,
-        &operations::remove_manifest(manifest),
+        &operations::install_manifest(manifest),
     )
 }
 
@@ -139,6 +116,22 @@ pub fn update_manifest(
         install_dirs,
         manifest,
         &operations::update_manifest(manifest),
+    )
+}
+
+/// Remove a manifest.
+///
+/// Apply the remove operations of the `manifest` against the given install dirs.
+pub fn remove_manifest(
+    dirs: &HomebinProjectDirs,
+    install_dirs: &mut InstallDirs,
+    manifest: &Manifest,
+) -> Result<()> {
+    apply_operations(
+        dirs,
+        install_dirs,
+        manifest,
+        &operations::remove_manifest(manifest),
     )
 }
 

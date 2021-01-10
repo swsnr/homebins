@@ -6,6 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Create download directory during updates; fixes download error during updates.
+
 ## [0.2.0] – 2021-01-10
 
 ### Added
