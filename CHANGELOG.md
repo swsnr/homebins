@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `remove.additional_files` field to remove additional files when removing the manifest, e.g. redundant files from previous versions (see [GH-9]).
 - Add `--remove` argument to `files` and `manifest-files` to list all files that would be removed (see [GH-9]).
+- Download all artifacts before installing.
 
 [GH-9]: https://github.com/lunaryorn/homebins/issues/9
   

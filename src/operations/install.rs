@@ -107,8 +107,12 @@ pub fn push_download<'a>(download: &'a InstallDownload, operations: &mut Vec<Ope
 /// Create a list of operations necessary to install `manifest`.
 pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
     let mut operations = Vec::with_capacity(manifest.number_of_install_operations());
+    // First download all artifacts…
     for download in &manifest.install {
         push_download(download, &mut operations);
+    }
+    // …then install.
+    for download in &manifest.install {
         push_download_install(download, &mut operations);
     }
     operations
