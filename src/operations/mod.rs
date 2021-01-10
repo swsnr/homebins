@@ -65,7 +65,7 @@ fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> Operatio
     Copy(source, Destination::new(dir, name), permissions)
 }
 
-fn add_links<'a>(target: &'a Target, target_name: &'a str, operations: &mut Vec<Operation<'a>>) {
+fn push_links<'a>(target: &'a Target, target_name: &'a str, operations: &mut Vec<Operation<'a>>) {
     if let Target::Binary { links } = target {
         for link in links {
             operations.push(Operation::Hardlink(Cow::from(target_name), Cow::from(link)))
@@ -92,7 +92,7 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
                     target,
                     Cow::Borrowed(target_name),
                 ));
-                add_links(target, target_name, &mut operations);
+                push_links(target, target_name, &mut operations);
             }
             Install::FilesFromArchive { files } => {
                 operations.push(Operation::Extract(Borrowed(filename)));
@@ -108,7 +108,7 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
                         &file.target,
                         Cow::from(name),
                     ));
-                    add_links(&file.target, name, &mut operations);
+                    push_links(&file.target, name, &mut operations);
                 }
             }
         }
