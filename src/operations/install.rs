@@ -44,8 +44,8 @@ impl ApproxNumberOfOperations for Manifest {
     }
 }
 
-fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> Operation<'a> {
-    use Operation::Copy;
+fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> InstallOperation<'a> {
+    use InstallOperation::Copy;
     let (dir, permissions) = match target {
         Target::Binary { .. } => (DestinationDirectory::BinDir, Permissions::Executable),
         Target::Manpage { section } => {
@@ -63,20 +63,27 @@ fn copy<'a>(source: Source<'a>, target: &Target, name: Cow<'a, str>) -> Operatio
     Copy(source, Destination::new(dir, name), permissions)
 }
 
-fn push_links<'a>(target: &'a Target, target_name: &'a str, operations: &mut Vec<Operation<'a>>) {
+fn push_links<'a>(
+    target: &'a Target,
+    target_name: &'a str,
+    operations: &mut Vec<InstallOperation<'a>>,
+) {
     if let Target::Binary { links } = target {
         for link in links {
-            operations.push(Operation::Hardlink(Cow::from(target_name), Cow::from(link)))
+            operations.push(InstallOperation::Hardlink(
+                Cow::from(target_name),
+                Cow::from(link),
+            ))
         }
     }
 }
 
 /// Create a list of operations necessary to install `manifest`.
-pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
+pub fn install_manifest(manifest: &Manifest) -> Vec<InstallOperation<'_>> {
     let mut operations = Vec::with_capacity(manifest.approx_number_of_operations());
     for download in &manifest.install {
         let filename = download.filename();
-        operations.push(Operation::Download(
+        operations.push(InstallOperation::Download(
             Borrowed(&download.download),
             Borrowed(filename),
             Borrowed(&download.checksums),
@@ -93,7 +100,7 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
                 push_links(target, target_name, &mut operations);
             }
             Install::FilesFromArchive { files } => {
-                operations.push(Operation::Extract(Borrowed(filename)));
+                operations.push(InstallOperation::Extract(Borrowed(filename)));
                 for file in files {
                     let name = file.name.as_deref().unwrap_or_else(|| {
                         file.source
@@ -116,17 +123,17 @@ pub fn install_manifest(manifest: &Manifest) -> Vec<Operation<'_>> {
 
 /// Get a list of all installation destinations within `operations`.
 pub fn operation_destinations<'a, I>(operations: I) -> impl Iterator<Item = Destination<'a>>
-    where
-        I: Iterator<Item = &'a Operation<'a>>,
+where
+    I: Iterator<Item = &'a InstallOperation<'a>> + 'a,
 {
     operations.filter_map(|operation| {
         match operation {
             // TODO: Don't clone but always borrowed out of contained cows
-            Operation::Copy(_, destination, _) => Some(Destination::new(
+            InstallOperation::Copy(_, destination, _) => Some(Destination::new(
                 destination.directory(),
                 Cow::from(destination.name()),
             )),
-            Operation::Hardlink(_, target) => Some(Destination::new(
+            InstallOperation::Hardlink(_, target) => Some(Destination::new(
                 DestinationDirectory::BinDir,
                 Cow::from(target.as_ref()),
             )),
@@ -152,13 +159,15 @@ mod tests {
         assert_eq!(
             install_manifest(&manifest),
             vec![
-                Operation::Download(
+                InstallOperation::Download(
                     Cow::Borrowed(&manifest.install[0].download),
                     Cow::Borrowed("ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz"),
                     Cow::Borrowed(&manifest.install[0].checksums),
                 ),
-                Operation::Extract(Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz")),
-                Operation::Copy(
+                InstallOperation::Extract(Cow::from(
+                    "ripgrep-12.1.1-x86_64-unknown-linux-musl.tar.gz"
+                )),
+                InstallOperation::Copy(
                     Source::new(
                         WorkDir,
                         Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl/rg")
@@ -166,8 +175,8 @@ mod tests {
                     Destination::new(BinDir, Cow::from("rg")),
                     Permissions::Executable
                 ),
-                Operation::Hardlink(Cow::Borrowed("rg"), Cow::from("ripgrep")),
-                Operation::Copy(
+                InstallOperation::Hardlink(Cow::Borrowed("rg"), Cow::from("ripgrep")),
+                InstallOperation::Copy(
                     Source::new(
                         WorkDir,
                         Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl/doc/rg.1")
@@ -175,7 +184,7 @@ mod tests {
                     Destination::new(ManDir(1), Cow::from("rg.1")),
                     Permissions::Regular
                 ),
-                Operation::Copy(
+                InstallOperation::Copy(
                     Source::new(
                         WorkDir,
                         Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl/complete/rg.fish")
@@ -183,7 +192,7 @@ mod tests {
                     Destination::new(CompletionDir(Shell::Fish), Cow::from("rg.fish")),
                     Permissions::Regular
                 ),
-                Operation::Copy(
+                InstallOperation::Copy(
                     Source::new(
                         WorkDir,
                         Cow::from("ripgrep-12.1.1-x86_64-unknown-linux-musl/rg.unit")
@@ -201,12 +210,12 @@ mod tests {
         assert_eq!(
             install_manifest(&manifest),
             vec![
-                Operation::Download(
+                InstallOperation::Download(
                     Cow::Borrowed(&manifest.install[0].download),
                     Cow::from("shfmt_v3.1.1_linux_amd64"),
                     Cow::Borrowed(&manifest.install[0].checksums),
                 ),
-                Operation::Copy(
+                InstallOperation::Copy(
                     Source::new(Download, Cow::from("shfmt_v3.1.1_linux_amd64")),
                     Destination::new(BinDir, Cow::from("shfmt")),
                     Permissions::Executable
@@ -218,23 +227,23 @@ mod tests {
     #[test]
     fn install_destinations_all() {
         let operations = vec![
-            Operation::Download(
+            InstallOperation::Download(
                 Cow::Owned(Url::parse("https://example.com/file.tar.gz").unwrap()),
                 "file.tar.gz".into(),
                 Cow::Owned(Checksums::default()),
             ),
-            Operation::Copy(
+            InstallOperation::Copy(
                 Source::new(WorkDir, "foo".into()),
                 Destination::new(CompletionDir(Shell::Fish), "foo.fish".into()),
                 Permissions::Regular,
             ),
-            Operation::Copy(
+            InstallOperation::Copy(
                 Source::new(WorkDir, "spam".into()),
                 Destination::new(BinDir, "spam".into()),
                 Permissions::Executable,
             ),
-            Operation::Hardlink("spam".into(), "eggs".into()),
-            Operation::Copy(
+            InstallOperation::Hardlink("spam".into(), "eggs".into()),
+            InstallOperation::Copy(
                 Source::new(WorkDir, "spam.1".into()),
                 Destination::new(ManDir(42), "spam.1".into()),
                 Permissions::Regular,

@@ -127,9 +127,7 @@ impl Commands {
     fn remove_manifest(&mut self, name: &str, manifest: &Manifest) -> () {
         if homebins::installed_manifest_version(&self.install_dirs, manifest)?.is_some() {
             println!("Removing {}", name.bold());
-            for file in homebins::remove_manifest(&mut self.install_dirs, manifest)? {
-                println!("rm {}", file.display())
-            }
+            homebins::remove_manifest(&self.dirs, &mut self.install_dirs, manifest)?;
             println!("{}", format!("{} removed", name).yellow())
         }
     }

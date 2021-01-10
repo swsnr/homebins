@@ -10,8 +10,6 @@
 
 #![deny(warnings, clippy::all, missing_docs)]
 
-use std::fs::File;
-use std::os::unix::fs::PermissionsExt;
 use std::path::PathBuf;
 use std::process::Command;
 
@@ -24,9 +22,8 @@ pub use dirs::*;
 pub use manifest::{Manifest, ManifestRepo, ManifestStore};
 pub use repos::HomebinRepos;
 
-use crate::checksum::Validate;
-use crate::operations::Operation;
-use crate::tools::{curl, extract, manpath, path_contains};
+use crate::operations::ApplyOperation;
+use crate::tools::{manpath, path_contains};
 
 mod checksum;
 mod dirs;
@@ -77,98 +74,6 @@ pub fn check_environment(install_dirs: &InstallDirs) -> () {
     }
 }
 
-/// Apply operations to directories.
-#[throws]
-pub fn apply_operations<'a, I>(dirs: ManifestOperationDirs, operations: I) -> ()
-where
-    I: Iterator<Item = &'a Operation<'a>>,
-{
-    std::fs::create_dir_all(dirs.download_dir()).with_context(|| {
-        format!(
-            "Failed to create download directory at {}",
-            dirs.download_dir().display()
-        )
-    })?;
-
-    use Operation::*;
-
-    for operation in operations {
-        match operation {
-            Download(url, name, checksums) => {
-                println!("Downloading {}", url.as_str().bold());
-                let dest = dirs.download_dir().join(name.as_ref());
-                // FIXME: Don't check for file, instead handle 416 errors from curl as indicator for completeness
-                if !dest.exists() {
-                    curl(&url, &dest)?;
-                }
-                let mut source = &mut File::open(&dest).with_context(|| {
-                    format!("Failed to open {} for checksum validation", dest.display())
-                })?;
-                checksums
-                    .validate(&mut source)
-                    .with_context(|| format!("Failed to validate {}", dest.display()))?;
-            }
-            Extract(name) => {
-                extract(&dirs.download_dir().join(name.as_ref()), dirs.work_dir())?;
-            }
-            Copy(source, destination, permissions) => {
-                let fs_permissions = permissions.to_unix_permissions();
-                let mode = fs_permissions.mode();
-                let source_path = dirs.path(source.directory()).join(source.name());
-                let target_dir = dirs.install_dirs().path(destination.directory());
-                let target = target_dir.join(destination.name());
-                println!(
-                    "install -m{:o} {} {}",
-                    mode,
-                    source.name(),
-                    target.display()
-                );
-                std::fs::create_dir_all(&target_dir)?;
-                let mut temp_target = tempfile::Builder::new()
-                    .prefix(destination.name())
-                    .tempfile_in(&target_dir)
-                    .with_context(|| {
-                        format!(
-                            "Failed to create temporary target file in {}",
-                            target_dir.display()
-                        )
-                    })?;
-                std::io::copy(&mut File::open(&source_path)?, &mut temp_target).with_context(
-                    || {
-                        format!(
-                            "Failed to copy {} to {}",
-                            source_path.display(),
-                            temp_target.path().display()
-                        )
-                    },
-                )?;
-                temp_target
-                    .persist(&target)
-                    .with_context(|| format!("Failed to persist at {}", target.display()))?;
-                std::fs::set_permissions(&target, fs_permissions).with_context(|| {
-                    format!(
-                        "Failed to set mode {:o} on installed file {}",
-                        mode,
-                        target.display()
-                    )
-                })?;
-            }
-            Hardlink(source, target) => {
-                let src = dirs.install_dirs().bin_dir().join(source.as_ref());
-                let dst = dirs.install_dirs().bin_dir().join(target.as_ref());
-                println!("ln -f {} {}", src.display(), dst.display());
-                if dst.exists() {
-                    std::fs::remove_file(&dst)
-                        .with_context(|| format!("Failed to override {}", dst.display()))?;
-                }
-                std::fs::hard_link(&src, &dst).with_context(|| {
-                    format!("Failed to link {} to {}", src.display(), dst.display(),)
-                })?;
-            }
-        }
-    }
-}
-
 /// Install a manifest.
 ///
 /// Apply the operations of a `manifest` against the given `install_dirs`; using the given project `dirs` for downloads.
@@ -178,9 +83,34 @@ pub fn install_manifest(
     install_dirs: &mut InstallDirs,
     manifest: &Manifest,
 ) -> () {
-    let operations = operations::install_manifest(manifest);
     let op_dirs = ManifestOperationDirs::for_manifest(dirs, install_dirs, manifest)?;
-    apply_operations(op_dirs, operations.iter())?;
+    let operations = operations::install_manifest(manifest);
+    std::fs::create_dir_all(op_dirs.download_dir()).with_context(|| {
+        format!(
+            "Failed to create download directory at {}",
+            dirs.download_dir().display()
+        )
+    })?;
+
+    for operation in operations {
+        operation.apply_operation(&op_dirs)?;
+    }
+}
+
+/// Remove a manifest.
+///
+/// Apply the remove operations of the `manifest` aganst the given install dirs.
+#[throws]
+pub fn remove_manifest(
+    dirs: &HomebinProjectDirs,
+    install_dirs: &mut InstallDirs,
+    manifest: &Manifest,
+) -> () {
+    let op_dirs = ManifestOperationDirs::for_manifest(dirs, install_dirs, manifest)?;
+    let operations = operations::remove_manifest(manifest);
+    for operation in operations {
+        operation.apply_operation(&op_dirs)?;
+    }
 }
 
 /// Get the installed version of the given manifest.
@@ -252,26 +182,4 @@ pub fn files(dirs: &InstallDirs, manifest: &Manifest) -> Vec<PathBuf> {
     operations::operation_destinations(operations::install_manifest(manifest).iter())
         .map(|destination| dirs.path(destination.directory()).join(destination.name()))
         .collect()
-}
-
-/// Remove all files installed by the given manifest.
-///
-/// Returns all removed files.
-#[throws]
-pub fn remove_manifest(dirs: &mut InstallDirs, manifest: &Manifest) -> Vec<PathBuf> {
-    let installed_files = files(dirs, manifest);
-    let mut removed_files = Vec::with_capacity(installed_files.len());
-    for file in installed_files {
-        if file.exists() {
-            std::fs::remove_file(&file).with_context(|| {
-                format!(
-                    "Failed to remove {} while removing {}",
-                    file.display(),
-                    &manifest.info.name,
-                )
-            })?;
-            removed_files.push(file);
-        }
-    }
-    removed_files
 }
