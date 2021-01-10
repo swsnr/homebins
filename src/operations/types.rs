@@ -97,7 +97,7 @@ pub type Destination<'a> = CopyOperand<'a, DestinationDirectory>;
 
 /// Operations to apply a manifest to a home directory.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum InstallOperation<'a> {
+pub enum Operation<'a> {
     /// Download a to the given filename in the manifest download directory and validate against checksums.
     Download(Cow<'a, Url>, Cow<'a, str>, Cow<'a, Checksums>),
     /// Extract the given filename from the manifest download directory into the manifest work directory.
@@ -106,11 +106,6 @@ pub enum InstallOperation<'a> {
     Copy(Source<'a>, Destination<'a>, Permissions),
     /// Create a hard link, from the first to the second item.
     Hardlink(Cow<'a, str>, Cow<'a, str>),
-}
-
-/// Operations to remove a manifest from a home directory
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RemoveOperation<'a> {
     /// Delete a file with the given name from the given destination directory.
-    Delete(DestinationDirectory, Cow<'a, str>),
+    Remove(DestinationDirectory, Cow<'a, str>),
 }

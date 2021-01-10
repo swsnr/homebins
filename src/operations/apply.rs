@@ -12,7 +12,7 @@ use colored::Colorize;
 use fehler::throws;
 
 use crate::checksum::Validate;
-use crate::operations::{InstallOperation, RemoveOperation};
+use crate::operations::Operation;
 use crate::tools::{curl, extract};
 use crate::ManifestOperationDirs;
 
@@ -25,12 +25,12 @@ pub trait ApplyOperation {
     fn apply_operation<'a>(&self, dirs: &ManifestOperationDirs<'a>) -> Result<(), Self::Error>;
 }
 
-impl<'a> ApplyOperation for InstallOperation<'a> {
+impl<'a> ApplyOperation for Operation<'a> {
     type Error = anyhow::Error;
 
     #[throws]
     fn apply_operation<'b>(&self, dirs: &ManifestOperationDirs<'b>) -> () {
-        use InstallOperation::*;
+        use Operation::*;
         match self {
             Download(url, name, checksums) => {
                 println!("Downloading {}", url.as_str().bold());
@@ -103,18 +103,7 @@ impl<'a> ApplyOperation for InstallOperation<'a> {
                     format!("Failed to link {} to {}", src.display(), dst.display(),)
                 })?;
             }
-        }
-    }
-}
-
-impl<'a> ApplyOperation for RemoveOperation<'a> {
-    type Error = anyhow::Error;
-
-    #[throws]
-    fn apply_operation<'b>(&self, dirs: &ManifestOperationDirs<'b>) -> () {
-        use RemoveOperation::*;
-        match self {
-            Delete(directory, name) => {
+            Remove(directory, name) => {
                 let file = dirs.install_dirs().path(*directory).join(name.as_ref());
                 println!("rm -f {}", file.display());
                 if file.exists() {

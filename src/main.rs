@@ -141,8 +141,7 @@ impl Commands {
     fn update_manifest(&mut self, name: &str, manifest: &Manifest) -> () {
         if homebins::outdated_manifest_version(&self.install_dirs, manifest)?.is_some() {
             println!("Updating {}", name.bold());
-            // Install overwrites; we do not need to remove old files.
-            homebins::install_manifest(&self.dirs, &mut self.install_dirs, manifest)?;
+            homebins::update_manifest(&self.dirs, &mut self.install_dirs, manifest)?;
             println!("{}", format!("{} updated", name).green());
         }
     }

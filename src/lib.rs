@@ -13,7 +13,7 @@
 use std::path::PathBuf;
 use std::process::Command;
 
-use anyhow::{anyhow, Context, Error};
+use anyhow::{anyhow, Context, Error, Result};
 use colored::Colorize;
 use fehler::throws;
 use versions::Versioning;
@@ -22,7 +22,7 @@ pub use dirs::*;
 pub use manifest::{Manifest, ManifestRepo, ManifestStore};
 pub use repos::HomebinRepos;
 
-use crate::operations::{ApplyOperation, RemoveOperation};
+use crate::operations::{ApplyOperation, Operation};
 use crate::tools::{manpath, path_contains};
 
 mod checksum;
@@ -97,20 +97,49 @@ pub fn install_manifest(
     }
 }
 
+#[throws]
+fn apply_operations(
+    dirs: &HomebinProjectDirs,
+    install_dirs: &mut InstallDirs,
+    manifest: &Manifest,
+    operations: &[Operation<'_>],
+) -> () {
+    let op_dirs = ManifestOperationDirs::for_manifest(dirs, install_dirs, manifest)?;
+    for operation in operations {
+        operation.apply_operation(&op_dirs)?;
+    }
+}
+
 /// Remove a manifest.
 ///
-/// Apply the remove operations of the `manifest` aganst the given install dirs.
-#[throws]
+/// Apply the remove operations of the `manifest` against the given install dirs.
 pub fn remove_manifest(
     dirs: &HomebinProjectDirs,
     install_dirs: &mut InstallDirs,
     manifest: &Manifest,
-) -> () {
-    let op_dirs = ManifestOperationDirs::for_manifest(dirs, install_dirs, manifest)?;
-    let operations = operations::remove_manifest(manifest);
-    for operation in operations {
-        operation.apply_operation(&op_dirs)?;
-    }
+) -> Result<()> {
+    apply_operations(
+        dirs,
+        install_dirs,
+        manifest,
+        &operations::remove_manifest(manifest),
+    )
+}
+
+/// Update a manifest
+///
+/// Apply the update operations of the `manifest` against the given install dirs.
+pub fn update_manifest(
+    dirs: &HomebinProjectDirs,
+    install_dirs: &mut InstallDirs,
+    manifest: &Manifest,
+) -> Result<()> {
+    apply_operations(
+        dirs,
+        install_dirs,
+        manifest,
+        &operations::update_manifest(manifest),
+    )
 }
 
 /// Get the installed version of the given manifest.
@@ -186,10 +215,7 @@ pub fn installed_files(dirs: &InstallDirs, manifest: &Manifest) -> Vec<PathBuf> 
 
 /// Get all files that would be removed when removing `manifest`.
 pub fn files_to_remove(dirs: &InstallDirs, manifest: &Manifest) -> Vec<PathBuf> {
-    operations::remove_manifest(manifest)
-        .iter()
-        .map(|op| match op {
-            RemoveOperation::Delete(dir, name) => dirs.path(*dir).join(name.as_ref()),
-        })
+    operations::operation_destinations(operations::remove_manifest(manifest).iter())
+        .map(|destination| dirs.path(destination.directory()).join(destination.name()))
         .collect()
 }
