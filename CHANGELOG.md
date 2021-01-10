@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] – 2021-01-10
+
 ### Fixed
 - Create download directory during updates; fixes download error during updates.
 
@@ -79,4 +81,5 @@ Initial prerelease.
 [0.0.5]: https://github.com/lunaryorn/homebins/compare/v0.0.4...v0.0.5
 [0.1.0]: https://github.com/lunaryorn/homebins/compare/v0.0.5...v0.1.0
 [0.2.0]: https://github.com/lunaryorn/homebins/compare/v0.1.0...v0.2.0
-[Unreleased]: https://github.com/lunaryorn/homebins/compare/v0.2.0...HEAD
+[0.2.1]: https://github.com/lunaryorn/homebins/compare/v0.2.0...v0.2.1
+[Unreleased]: https://github.com/lunaryorn/homebins/compare/v0.2.1...HEAD
