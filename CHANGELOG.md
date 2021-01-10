@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] – 2021-01-10
+
 ### Added
 
 - Add `remove.additional_files` field to remove additional files when removing the manifest, e.g. redundant files from previous versions (see [GH-9]).
@@ -73,4 +75,5 @@ Initial prerelease.
 [0.0.4]: https://github.com/lunaryorn/homebins/compare/v0.0.3...v0.0.4
 [0.0.5]: https://github.com/lunaryorn/homebins/compare/v0.0.4...v0.0.5
 [0.1.0]: https://github.com/lunaryorn/homebins/compare/v0.0.5...v0.1.0
-[Unreleased]: https://github.com/lunaryorn/homebins/compare/v0.1.0...HEAD
+[0.2.0]: https://github.com/lunaryorn/homebins/compare/v0.1.0...v0.2.0
+[Unreleased]: https://github.com/lunaryorn/homebins/compare/v0.2.0...HEAD
