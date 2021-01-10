@@ -106,4 +106,6 @@ pub enum Operation<'a> {
     Copy(Source<'a>, Destination<'a>, Permissions),
     /// Create a hard link, from the first to the second item.
     Hardlink(Cow<'a, str>, Cow<'a, str>),
+    /// Delete a file with the given name from the given destination directory.
+    Remove(DestinationDirectory, Cow<'a, str>),
 }

@@ -108,8 +108,13 @@ impl Commands {
     }
 
     #[throws]
-    fn list_files(&self, manifest: &Manifest, existing: bool) -> () {
-        for file in homebins::files(&self.install_dirs, manifest) {
+    fn list_files(&self, manifest: &Manifest, existing: bool, to_remove: bool) -> () {
+        let files = if to_remove {
+            homebins::files_to_remove(&self.install_dirs, manifest)
+        } else {
+            homebins::installed_files(&self.install_dirs, manifest)
+        };
+        for file in files {
             if !existing || file.exists() {
                 println!("{}", file.display());
             }
@@ -127,9 +132,7 @@ impl Commands {
     fn remove_manifest(&mut self, name: &str, manifest: &Manifest) -> () {
         if homebins::installed_manifest_version(&self.install_dirs, manifest)?.is_some() {
             println!("Removing {}", name.bold());
-            for file in homebins::remove_manifest(&mut self.install_dirs, manifest)? {
-                println!("rm {}", file.display())
-            }
+            homebins::remove_manifest(&self.dirs, &mut self.install_dirs, manifest)?;
             println!("{}", format!("{} removed", name).yellow())
         }
     }
@@ -138,8 +141,7 @@ impl Commands {
     fn update_manifest(&mut self, name: &str, manifest: &Manifest) -> () {
         if homebins::outdated_manifest_version(&self.install_dirs, manifest)?.is_some() {
             println!("Updating {}", name.bold());
-            // Install overwrites; we do not need to remove old files.
-            homebins::install_manifest(&self.dirs, &mut self.install_dirs, manifest)?;
+            homebins::update_manifest(&self.dirs, &mut self.install_dirs, manifest)?;
             println!("{}", format!("{} updated", name).green());
         }
     }
@@ -153,13 +155,13 @@ impl Commands {
     }
 
     #[throws]
-    pub fn files(&mut self, names: Vec<String>, existing: bool) -> () {
+    pub fn files(&mut self, names: Vec<String>, existing: bool, to_remove: bool) -> () {
         let store = self.repos().manifest_store()?;
         for name in names {
             let manifest = store
                 .load_manifest(&name)?
                 .ok_or_else(|| anyhow!("Binary {} not found", name))?;
-            self.list_files(&manifest, existing)?;
+            self.list_files(&manifest, existing, to_remove)?;
         }
     }
 
@@ -211,9 +213,9 @@ impl Commands {
     }
 
     #[throws]
-    pub fn manifest_files(&self, filenames: Vec<PathBuf>, existing: bool) -> () {
+    pub fn manifest_files(&self, filenames: Vec<PathBuf>, existing: bool, to_remove: bool) -> () {
         for manifest in read_manifests(filenames.iter())? {
-            self.list_files(&manifest, existing)?
+            self.list_files(&manifest, existing, to_remove)?
         }
     }
 
@@ -256,6 +258,7 @@ fn process_args(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         ("files", Some(m)) => commands.files(
             values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()),
             m.is_present("existing"),
+            m.is_present("remove"),
         ),
         ("install", Some(m)) => {
             commands.install(values_t!(m.values_of("name"), String).unwrap_or_else(|e| e.exit()))
@@ -286,6 +289,7 @@ fn process_args(matches: &clap::ArgMatches) -> anyhow::Result<()> {
         ("manifest-files", Some(m)) => commands.manifest_files(
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
             m.is_present("existing"),
+            m.is_present("remove"),
         ),
         ("manifest-install", Some(m)) => commands.manifest_install(
             values_t!(m.values_of("manifest-file"), PathBuf).unwrap_or_else(|e| e.exit()),
@@ -316,6 +320,12 @@ fn main() {
                         .short("e")
                         .long("existing")
                         .help("Only existing files"),
+                )
+                .arg(
+                    Arg::with_name("remove")
+                        .short("r")
+                        .long("remove")
+                        .help("List all files that would be removed"),
                 )
                 .arg(
                     Arg::with_name("name")
@@ -391,6 +401,12 @@ fn main() {
                         .short("e")
                         .long("existing")
                         .help("Only existing files"),
+                )
+                .arg(
+                    Arg::with_name("remove")
+                        .short("r")
+                        .long("remove")
+                        .help("List all files that would be removed"),
                 )
                 .arg(
                     Arg::with_name("manifest-file")

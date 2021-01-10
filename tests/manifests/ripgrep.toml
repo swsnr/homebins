@@ -19,3 +19,8 @@ files = [
     # ripgrep has no systemd service, but for the sake of testing assume it has one
     { source = "ripgrep-12.1.1-x86_64-unknown-linux-musl/rg.unit", type = "systemd_user_unit" }
 ]
+
+[remove]
+additional_files = [
+    { name = "rg.old", type = "bin" }
+]
